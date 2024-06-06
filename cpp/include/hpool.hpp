@@ -14,8 +14,10 @@ namespace hpool{
         virtual pool_ptr<T> allocate() = 0;
         virtual void free(pool_ptr<T>&) = 0;
 
+        virtual bool is_valid() = 0;
         virtual uint32_t get_total_elements() = 0;
         virtual uint32_t get_allocated_elements() = 0;
+        virtual uint32_t get_nearest_free_block() = 0;
     };
 
     template<typename T>
@@ -53,6 +55,7 @@ namespace hpool{
         uint32_t allocated_elements;
         uint32_t nearest_free_block;
         bool has_free_blocks;
+        bool valid;
 
         uint32_t find_nearest_free_block();
     public:
@@ -60,7 +63,8 @@ namespace hpool{
             total_elements(element_count),
             allocated_elements(0),
             nearest_free_block(0),
-            has_free_blocks(true){
+            has_free_blocks(true),
+            valid(true){
 
             pool = static_cast<Element<T>*>(calloc(sizeof(Element<T>), element_count));
             if (!pool)
@@ -69,8 +73,10 @@ namespace hpool{
         pool_ptr<T> allocate() override;
         void free(pool_ptr<T>&) override;
 
+        bool is_valid() override;
         uint32_t get_total_elements() override;
         uint32_t get_allocated_elements() override;
+        uint32_t get_nearest_free_block() override;
 
         ~HPool();
     };
@@ -80,7 +86,7 @@ template<typename T>
 T& hpool::pool_ptr<T>::operator*() {
     if (!ptr->used)
         throw std::runtime_error("use-after-free detected!");
-    return &ptr->object;
+    return ptr->object;
 }
 
 template<typename T>
@@ -99,7 +105,8 @@ T* hpool::pool_ptr<T>::get() {
 
 template<typename T>
 void hpool::pool_ptr<T>::free(){
-    pool.free(*this);
+    if (pool.is_valid())
+        pool.free(*this);
 }
 
 template<typename T>
@@ -158,6 +165,17 @@ uint32_t hpool::HPool<T>::get_allocated_elements() {
 }
 
 template<typename T>
+uint32_t hpool::HPool<T>::get_nearest_free_block() {
+    return nearest_free_block;
+}
+
+template<typename T>
+bool hpool::HPool<T>::is_valid() {
+    return valid;
+}
+
+template<typename T>
 hpool::HPool<T>::~HPool(){
     std::free(pool);
+    valid = false;
 }
