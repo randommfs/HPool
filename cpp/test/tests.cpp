@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include <hpool.hpp>
+#include "../hpool.hpp"
 
 TEST(HPOOL, MANUAL_PTR_DISPOSE){
     hpool::HPool<int64_t> pool(32);
