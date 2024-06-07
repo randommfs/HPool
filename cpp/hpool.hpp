@@ -11,8 +11,10 @@ namespace hpool{
     template<typename T>
     class IPool{
     public:
-        virtual pool_ptr<T> allocate() = 0;
+        virtual pool_ptr<T> allocate_pptr() = 0;
+        virtual T* allocate() = 0;
         virtual void free(pool_ptr<T>&) = 0;
+        virtual void free(T*) = 0;
 
         virtual bool is_valid() = 0;
         virtual uint32_t get_total_elements() = 0;
@@ -70,8 +72,10 @@ namespace hpool{
             if (!pool)
                 throw std::runtime_error("Failed to allocate memory");
         }
-        pool_ptr<T> allocate() override;
+        pool_ptr<T> allocate_pptr() override;
+        T* allocate() override;
         void free(pool_ptr<T>&) override;
+        void free(T*) override;
 
         bool is_valid() override;
         uint32_t get_total_elements() override;
@@ -138,7 +142,7 @@ uint32_t hpool::HPool<T>::find_nearest_free_block() {
 }
 
 template<typename T>
-hpool::pool_ptr<T> hpool::HPool<T>::allocate() {
+hpool::pool_ptr<T> hpool::HPool<T>::allocate_pptr() {
     uint32_t index = nearest_free_block;
     pool[index].used = true;
     ++allocated_elements;
@@ -147,11 +151,30 @@ hpool::pool_ptr<T> hpool::HPool<T>::allocate() {
 }
 
 template<typename T>
+T* hpool::HPool<T>::allocate() {
+    uint32_t index = nearest_free_block;
+    pool[index].used = true;
+    ++allocated_elements;
+    nearest_free_block = find_nearest_free_block();
+    return &pool[index].object;
+}
+
+template<typename T>
 void hpool::HPool<T>::free(hpool::pool_ptr<T>& ptr){
     pool[ptr._idx()].used = false;
     --allocated_elements;
     if (ptr._idx() < nearest_free_block)
         nearest_free_block = ptr._idx();
+}
+
+template<typename T>
+void hpool::HPool<T>::free(T* ptr){
+    uint32_t index = 0;
+    while (&pool[index].object != ptr) ++index;
+    pool[index].used = false;
+    --allocated_elements;
+    if (index < nearest_free_block)
+        nearest_free_block = index;
 }
 
 template<typename T>

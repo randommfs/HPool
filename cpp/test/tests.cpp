@@ -5,7 +5,7 @@ TEST(HPOOL, MANUAL_PTR_DISPOSE){
     hpool::HPool<int64_t> pool(32);
     ASSERT_EQ(pool.get_total_elements(), 32);
 
-    auto ptr = pool.allocate();
+    auto ptr = pool.allocate_pptr();
     EXPECT_EQ(ptr._idx(), 0);
     EXPECT_EQ(pool.get_allocated_elements(), 1);
 
@@ -17,7 +17,7 @@ TEST(HPOOL, MANUAL_POOL_DISPOSE){
     hpool::HPool<int64_t> pool(32);
     ASSERT_EQ(pool.get_total_elements(), 32);
 
-    auto ptr = pool.allocate();
+    auto ptr = pool.allocate_pptr();
     EXPECT_EQ(ptr._idx(), 0);
     EXPECT_EQ(pool.get_allocated_elements(), 1);
 
@@ -30,7 +30,7 @@ TEST(HPOOL, AUTOMATIC_PTR_DISPOSE){
     ASSERT_EQ(pool.get_total_elements(), 32);
 
     {
-        auto ptr = pool.allocate();
+        auto ptr = pool.allocate_pptr();
         EXPECT_EQ(ptr._idx(), 0);
         EXPECT_EQ(pool.get_allocated_elements(), 1);
     }
@@ -42,8 +42,8 @@ TEST(HPOOL, CORRECT_BLOCK_MANAGEMENT){
     hpool::HPool<int64_t> pool(32);
     ASSERT_EQ(pool.get_total_elements(), 32);
 
-    auto ptr = pool.allocate();
-    auto ptr1 = pool.allocate();
+    auto ptr = pool.allocate_pptr();
+    auto ptr1 = pool.allocate_pptr();
     EXPECT_EQ(ptr._idx(), 0);
     EXPECT_EQ(ptr1._idx(), 1);
     ASSERT_EQ(pool.get_nearest_free_block(), 2);
@@ -56,7 +56,7 @@ TEST(HPOOL, USE_AFTER_FREE_BEHAVIOUR){
     hpool::HPool<int64_t> pool(32);
     ASSERT_EQ(pool.get_total_elements(), 32);
 
-    auto ptr = pool.allocate();
+    auto ptr = pool.allocate_pptr();
     EXPECT_EQ(ptr._idx(), 0);
     EXPECT_EQ(pool.get_allocated_elements(), 1);
 
