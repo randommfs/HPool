@@ -169,7 +169,7 @@ void hpool::HPool<T>::free(hpool::pool_ptr<T>& ptr){
 
 template<typename T>
 void hpool::HPool<T>::free(T* ptr){
-    uint32_t index = (reinterpret_cast<std::uintptr_t>(pool) - reinterpret_cast<std::uintptr_t>(ptr)) / sizeof(T);
+    uint32_t index = (reinterpret_cast<std::uintptr_t>(ptr) - reinterpret_cast<std::uintptr_t>(pool)) / sizeof(T);
     pool[index].used = false;
     --allocated_elements;
     if (index < nearest_free_block)
