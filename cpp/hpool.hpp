@@ -1,3 +1,5 @@
+#pragma once
+
 namespace hpool{
     template<typename T>
     class pool_ptr;
