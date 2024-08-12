@@ -6,7 +6,7 @@
 <h4 align="center">Simple and blazingly fast pool allocator implementation</h4>
 
 <p align="center">
-    <a href="https://github.com/randommfs/HPooll/issues">
+    <a href="https://github.com/randommfs/HPool/issues">
     <img src="https://img.shields.io/github/issues/randommfs/HPool?color=lime"
          alt="GitHub opened issues">
     <img src="https://img.shields.io/badge/status-stable-lime"
@@ -21,7 +21,7 @@
 <table>
 <tr>
 <td>
-Why this thing is so fast? The only place where O(n) method is used is in next free block search function. When you call allocate(), it takes index of free block, and searches for next free block starting from that index. It works, because free() always keeps special variable (which contains index of free block) pointing to the *first* free block. Also, free() uses O(1) algorithm, so every run it takes constant time. When you pass in a pointer, it calculates index of block to free using formula: `(ptr - pool_ptr) / sizeof(Element<T>)`. That's main feature of this library!
+Why this thing is so fast? The only place where O(n) method is used is in next free block search function. When you call allocate(), it takes index of free block, and searches for next free block starting from that index. It works, because free() always keeps special variable (which contains index of free block) pointing to the *first* free block. Also, free() uses O(1) algorithm, so every run it takes constant time. Thats main features of library - insanely fast free algorithm and small header!
 </td>
 </tr>
 </table>
