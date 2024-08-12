@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <cstdlib>
+#include <cassert>
 
 #include <stdexcept>
 
@@ -49,6 +50,7 @@ public:
 
 template <typename T>
 T *hpool::HPool<T>::allocate() {
+  if (nearest_free_block == -1) return nullptr;
   uint32_t index = nearest_free_block;
   pool[index].used = true;
   ++allocated_elements;
@@ -57,9 +59,11 @@ T *hpool::HPool<T>::allocate() {
 }
 
 template <typename T> void hpool::HPool<T>::free(T *ptr) {
+  assert(ptr);
   uint32_t index = (reinterpret_cast<std::uintptr_t>(ptr) -
                     reinterpret_cast<std::uintptr_t>(pool)) /
                    sizeof(Element<T>);
+  assert(pool[index].used);
   pool[index].used = false;
   --allocated_elements;
   if (index < nearest_free_block)
