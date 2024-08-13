@@ -12,3 +12,15 @@ TEST(HPOOL, PTR_FREE) {
   pool.free(ptr);
   EXPECT_EQ(pool.get_allocated_elements(), 0);
 }
+
+TEST(HPOOL, CUSTOM_T_SIZE) {
+  hpool::HPool<int64_t, 32> pool(32);
+  ASSERT_EQ(pool.get_total_elements(), 32);
+
+  auto ptr = pool.allocate();
+  EXPECT_EQ(pool.get_allocated_elements(), 1);
+
+  *ptr = 5;
+  pool.free(ptr);
+  EXPECT_EQ(pool.get_allocated_elements(), 0);
+}
