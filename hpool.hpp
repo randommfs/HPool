@@ -6,15 +6,12 @@
 
 #include <stdexcept>
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Waddress-of-packed-member"
-
 namespace hpool {
 
 template <typename T, size_t BlockSize> struct Element {
   char object[BlockSize];
-  bool used;
-} __attribute__((packed));
+  bool used : 1;
+};
 
 template <typename T, size_t BlockSize = sizeof(T)> class HPool {
 private:
@@ -88,5 +85,3 @@ uint32_t hpool::HPool<T, BlockSize>::find_nearest_free_block() {
   }
   return -1;
 }
-
-#pragma GCC diagnostic pop

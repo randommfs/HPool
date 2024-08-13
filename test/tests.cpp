@@ -24,3 +24,7 @@ TEST(HPOOL, CUSTOM_T_SIZE) {
   pool.free(ptr);
   EXPECT_EQ(pool.get_allocated_elements(), 0);
 }
+
+TEST(HPOOL, ELEMENT_SIZE) {
+  ASSERT_EQ(sizeof(hpool::Element<size_t, sizeof(size_t)>), 9);
+}
