@@ -21,7 +21,7 @@
 <table>
 <tr>
 <td>
-Why this thing is so fast? The only place where O(n) method is used is in next free block search function. When you call allocate(), it takes index of free block, and searches for next free block starting from that index. It works, because free() always keeps special variable (which contains index of free block) pointing to the *first* free block. Also, free() uses O(1) algorithm, so every run it takes constant time. Thats main features of library - insanely fast free algorithm and small header!
+Why is this thing so fast? The only case that uses O(n) approach is next free block search function. When you call allocate(), it takes index of free block, and searches for next free block starting from that index. It works, because free() always keeps track of pointer to the *first* free block. Also, free() uses O(1) algorithm, so every run takes constant time. These are main features of library - insanely fast free algorithm and small header!
 </td>
 </tr>
 </table>
@@ -33,12 +33,12 @@ Why this thing is so fast? The only place where O(n) method is used is in next f
 - [Benchmarks](#benchmarks)
 
 ## Installation
-1. Download main header [hpool.h](hpool.hpp)
+1. Download header [hpool.h](hpool.hpp)
 2. Include it to your source file.
 3. ...use?
 
 ## Building tests and benchmarks
-There is single test (yes) and some benchmarks. To build, you can do this:
+There is a single test (yes) and some benchmarks. To build, run this:
 ```bash
 mkdir build
 cd build
@@ -51,11 +51,11 @@ make
 ## Usage
 
 ### Preparation
-Create object like that:
+Create pool object:
 ```cpp
 hpool::HPool<T> pool{32};
 ```
-where T is a target type, and 32 is a maximum pool size (in elements).
+where T is a target type, and 32 is a maximum pool size (in number of elements of type T).
 
 ### Use
 #### Allocate memory:
