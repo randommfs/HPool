@@ -10,7 +10,7 @@ namespace hpool {
 
 template <typename T, size_t BlockSize> struct Element {
   char object[BlockSize];
-  bool used : 1;
+  uint32_t ptr;
 };
 
 template <typename T, size_t BlockSize = sizeof(T)> class HPool {
@@ -18,20 +18,23 @@ private:
   Element<T, sizeof(T)> *pool;
   uint32_t total_elements;
   uint32_t allocated_elements;
-  uint32_t nearest_free_block;
-  bool has_free_blocks;
-
-  uint32_t find_nearest_free_block();
+  uint32_t free_ptr;
+  bool has_free_blocks : 1;
 
 public:
   explicit HPool(uint32_t element_count)
       : total_elements(element_count), allocated_elements(0),
-        nearest_free_block(0), has_free_blocks(true) {
+        free_ptr(0), has_free_blocks(true) {
 
     pool = static_cast<Element<T, sizeof(T)> *>(
         std::calloc(sizeof(Element<T, sizeof(T)>), element_count));
     if (!pool)
       throw std::runtime_error("Failed to allocate memory");
+    // Initialize pool
+    for (uint32_t i = 0; i < element_count; ++i) {
+      pool[i].ptr = i + 1;
+    }
+    pool[element_count - 1].ptr = element_count - 1;
   }
   T *allocate();
   void free(T *);
@@ -45,12 +48,13 @@ public:
 
 template <typename T, size_t BlockSize>
 T *hpool::HPool<T, BlockSize>::allocate() {
-  if (nearest_free_block == -1)
+  if (!has_free_blocks)
     return nullptr;
-  uint32_t index = nearest_free_block;
-  pool[index].used = true;
+  uint32_t index = free_ptr;
+  free_ptr = pool[index].ptr;
   ++allocated_elements;
-  nearest_free_block = find_nearest_free_block();
+  if (allocated_elements == total_elements)
+    has_free_blocks = false;
   return reinterpret_cast<T*>(&pool[index].object);
 }
 
@@ -60,11 +64,9 @@ void hpool::HPool<T, BlockSize>::free(T *ptr) {
   uint32_t index = (reinterpret_cast<std::uintptr_t>(ptr) -
                     reinterpret_cast<std::uintptr_t>(pool)) /
                    sizeof(Element<T, sizeof(T)>);
-  assert(pool[index].used);
-  pool[index].used = false;
+  pool[index].ptr = free_ptr;
+  free_ptr = index;
   --allocated_elements;
-  if (index < nearest_free_block)
-    nearest_free_block = index;
 }
 
 template <typename T, size_t BlockSize>
@@ -75,13 +77,4 @@ uint32_t hpool::HPool<T, BlockSize>::get_total_elements() {
 template <typename T, size_t BlockSize>
 uint32_t hpool::HPool<T, BlockSize>::get_allocated_elements() {
   return allocated_elements;
-}
-
-template <typename T, size_t BlockSize>
-uint32_t hpool::HPool<T, BlockSize>::find_nearest_free_block() {
-  for (uint32_t i = nearest_free_block; i < total_elements; ++i) {
-    if (!pool[i].used)
-      return i;
-  }
-  return -1;
 }

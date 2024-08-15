@@ -14,9 +14,9 @@ TEST(HPOOL, PTR_FREE) {
 }
 
 TEST(HPOOL, ELEMENT_SIZE) {
-  ASSERT_EQ(sizeof(hpool::Element<size_t, sizeof(size_t)>), 9);
+  ASSERT_EQ(sizeof(hpool::Element<size_t, sizeof(size_t)>), 12);
 }
 
 TEST(HPOOL, CUSTOM_SIZE) {
-  ASSERT_EQ(sizeof(hpool::Element<size_t, 32>), 33);
+  ASSERT_EQ(sizeof(hpool::Element<size_t, 32>), 36);
 }

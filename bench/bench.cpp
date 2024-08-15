@@ -58,6 +58,7 @@ void free_hpool_random(hpool::HPool<size_t>& hpool_pool) {
 int main() {
   std::random_device rd;
   std::mt19937 g(rd());
+  /*
   {
     boost::object_pool<size_t> boost_pool{};
     BENCH(alloc_boost_linear(boost_pool));
@@ -69,7 +70,7 @@ int main() {
     std::shuffle(std::begin(arr1), std::end(arr1), g);
     BENCH(free_boost_random(boost_pool));
   }
-
+*/
   {
     hpool::HPool<size_t> hpool_pool{TEST_SIZE};
     BENCH(alloc_hpool_linear(hpool_pool));
