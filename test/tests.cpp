@@ -1,22 +1,43 @@
-#include "../hpool.hpp"
+#include <memory>
+#include <cstdint>
+
+#include <hpool.hpp>
 #include <gtest/gtest.h>
 
-TEST(HPOOL, PTR_FREE) {
-  hpool::HPool<int64_t> pool(32);
-  ASSERT_EQ(pool.get_total_elements(), 32);
+using namespace hpool;
 
-  auto ptr = pool.allocate();
-  EXPECT_EQ(pool.get_allocated_elements(), 1);
 
-  *ptr = 5;
-  pool.free(ptr);
-  EXPECT_EQ(pool.get_allocated_elements(), 0);
+TEST(HPool, AllocateAndFreePointer) {
+	hpool::HPool<std::int64_t> pool(32);
+	ASSERT_EQ(pool.size(), 32);
+
+	auto ptr = pool.allocate();
+	EXPECT_EQ(pool.allocated(), 1);
+
+	pool.free(ptr);
+	EXPECT_EQ(pool.allocated(), 0);
 }
 
-TEST(HPOOL, ELEMENT_SIZE) {
-  ASSERT_EQ(sizeof(hpool::Element<size_t, sizeof(size_t)>), 12);
-}
 
-TEST(HPOOL, CUSTOM_SIZE) {
-  ASSERT_EQ(sizeof(hpool::Element<size_t, 32>), 36);
+TEST(HPool, AllocateAndFreeMultipleTimes) {
+	constexpr int poolSize = 3;
+
+	hpool::HPool<std::int64_t> pool(poolSize);
+	std::int64_t* ptrs[poolSize];
+
+	for (int i = 0; i < poolSize; ++i) {
+		ptrs[i] = pool.allocate();
+	}
+
+	EXPECT_EQ(pool.size(), pool.allocated());
+	EXPECT_EQ(pool.allocate(), nullptr);
+
+	for (int i = 0; i < poolSize - 1; ++i) {
+		pool.free(ptrs[i]);
+	}	
+
+	EXPECT_EQ(pool.allocated(), 1);
+
+	std::construct_at(ptrs[poolSize - 1], static_cast<std::int64_t>(0));
+	EXPECT_EQ(*ptrs[poolSize - 1], 0);
 }

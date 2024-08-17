@@ -1,80 +1,117 @@
 #pragma once
 
 #include <cassert>
+#include <cstddef>
 #include <cstdint>
 #include <cstdlib>
-
+#include <memory>
 #include <stdexcept>
+#include <utility>
+
 
 namespace hpool {
 
-template <typename T, size_t BlockSize> struct Element {
-  char object[BlockSize];
-  uint32_t ptr;
-};
+	template <typename T, std::size_t BlockSize = sizeof(T)> 
+	class HPool {
+	public:
 
-template <typename T, size_t BlockSize = sizeof(T)> class HPool {
-private:
-  Element<T, sizeof(T)> *pool;
-  uint32_t total_elements;
-  uint32_t allocated_elements;
-  uint32_t free_ptr;
-  bool has_free_blocks : 1;
+		// public API
+		explicit HPool(std::uint32_t size);
 
-public:
-  explicit HPool(uint32_t element_count)
-      : total_elements(element_count), allocated_elements(0),
-        free_ptr(0), has_free_blocks(true) {
+		T* allocate() noexcept;
+		void free(T* pointer) noexcept;
 
-    pool = static_cast<Element<T, sizeof(T)> *>(
-        std::calloc(sizeof(Element<T, sizeof(T)>), element_count));
-    if (!pool)
-      throw std::runtime_error("Failed to allocate memory");
-    // Initialize pool
-    for (uint32_t i = 0; i < element_count; ++i) {
-      pool[i].ptr = i + 1;
-    }
-    pool[element_count - 1].ptr = element_count - 1;
-  }
-  T *allocate();
-  void free(T *);
+		std::uint32_t size() const noexcept;
+		std::uint32_t allocated() const noexcept;
 
-  uint32_t get_total_elements();
-  uint32_t get_allocated_elements();
+	private:
+		T* parseNext() noexcept;
+		std::pair<std::uint32_t&, T*> parseAt(std::uint32_t hint) noexcept;
 
-  ~HPool() { std::free(pool); }
-};
+
+	private:
+		std::unique_ptr<char[]> pool_;
+		std::uint32_t totalSize_;
+		std::uint32_t allocatedSize_;
+		std::uint32_t next_;
+
+	};
+
 } // namespace hpool
 
-template <typename T, size_t BlockSize>
-T *hpool::HPool<T, BlockSize>::allocate() {
-  if (!has_free_blocks)
-    return nullptr;
-  uint32_t index = free_ptr;
-  free_ptr = pool[index].ptr;
-  ++allocated_elements;
-  if (allocated_elements == total_elements)
-    has_free_blocks = false;
-  return reinterpret_cast<T*>(&pool[index].object);
+
+template <typename T, std::size_t BlockSize> 
+hpool::HPool<T, BlockSize>::HPool(std::uint32_t size)
+	: pool_(std::make_unique<char[]>(size * (sizeof(std::uint32_t) + BlockSize)))
+	, totalSize_(size)
+	, allocatedSize_(0)
+	, next_(0)
+{
+	if (!pool_) {
+		throw std::runtime_error("failed to allocate enough memory");
+	}
+
+	for (std::uint32_t i = 0; i < totalSize_; ++i) {
+		auto block = parseAt(i);
+		block.first = i + 1;
+	}
+	auto last = parseAt(totalSize_ - 1);
+	last.first = totalSize_ - 1;
+
 }
 
-template <typename T, size_t BlockSize>
-void hpool::HPool<T, BlockSize>::free(T *ptr) {
-  assert(ptr);
-  uint32_t index = (reinterpret_cast<std::uintptr_t>(ptr) -
-                    reinterpret_cast<std::uintptr_t>(pool)) /
-                   sizeof(Element<T, sizeof(T)>);
-  pool[index].ptr = free_ptr;
-  free_ptr = index;
-  --allocated_elements;
+
+template <typename T, std::size_t BlockSize> 
+T *hpool::HPool<T, BlockSize>::allocate() noexcept {
+	if (allocatedSize_ == totalSize_) {
+		return nullptr;
+	}
+
+	return parseNext();
 }
 
-template <typename T, size_t BlockSize>
-uint32_t hpool::HPool<T, BlockSize>::get_total_elements() {
-  return total_elements;
+
+template <typename T, std::size_t BlockSize>
+void hpool::HPool<T, BlockSize>::free(T *ptr) noexcept {
+	std::uint32_t shift = reinterpret_cast<std::ptrdiff_t>(ptr) - 
+		reinterpret_cast<std::ptrdiff_t>(pool_.get());
+	shift /= sizeof(std::uint32_t) + BlockSize;
+
+	auto block = parseAt(shift);
+	block.first = next_;
+	next_ = shift;
+
+	--allocatedSize_;
 }
 
-template <typename T, size_t BlockSize>
-uint32_t hpool::HPool<T, BlockSize>::get_allocated_elements() {
-  return allocated_elements;
+
+template <typename T, std::size_t BlockSize>
+std::uint32_t hpool::HPool<T, BlockSize>::size() const noexcept {
+	return totalSize_;
+}
+
+
+template <typename T, std::size_t BlockSize>
+std::uint32_t hpool::HPool<T, BlockSize>::allocated() const noexcept {
+	return allocatedSize_;
+}
+
+
+template <typename T, std::size_t BlockSize>
+std::pair<std::uint32_t&, T*> hpool::HPool<T, BlockSize>::parseAt(std::uint32_t hint) noexcept {
+	char* shift = pool_.get() + hint * (sizeof(std::uint32_t) + BlockSize);
+	return std::make_pair(
+		std::ref(reinterpret_cast<std::uint32_t&>(*shift)), 
+		reinterpret_cast<T*>(shift + sizeof(std::uint32_t))
+	);
+}
+
+
+template <typename T, std::size_t BlockSize>
+T* hpool::HPool<T, BlockSize>::parseNext() noexcept {
+	auto block = parseAt(next_);
+
+	next_ = block.first;
+	++allocatedSize_;
+	return block.second;
 }
