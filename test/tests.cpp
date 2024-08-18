@@ -3,6 +3,7 @@
 
 #include <hpool.hpp>
 #include <gtest/gtest.h>
+#include <stdexcept>
 
 using namespace hpool;
 
@@ -40,4 +41,29 @@ TEST(HPool, AllocateAndFreeMultipleTimes) {
 
 	std::construct_at(ptrs[poolSize - 1], static_cast<std::int64_t>(0));
 	EXPECT_EQ(*ptrs[poolSize - 1], 0);
+}
+
+
+TEST(HPool, STLAllocations) {
+	constexpr int poolSize = 3;
+	hpool::HPool<std::int64_t> pool(poolSize);
+
+	{
+		auto shared = hpool::make_shared(pool, 1);
+		EXPECT_EQ(*shared, 1);
+	}
+
+	{
+		auto unique = hpool::make_unique(pool, 2);
+		EXPECT_EQ(*unique, 2);
+	}
+	EXPECT_EQ(pool.allocated(), 0);
+
+	std::shared_ptr<int64_t> pointers[poolSize];
+	for (int i = 0; i < poolSize; ++i) {
+		pointers[i] = hpool::make_shared(pool, i);
+	}
+
+	EXPECT_EQ(pool.allocated(), poolSize);
+	EXPECT_THROW(hpool::make_shared(pool, 0), std::runtime_error);
 }

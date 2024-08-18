@@ -37,6 +37,27 @@ namespace hpool {
 
 	};
 
+	template<typename T>
+	class Deleter {
+	public:
+
+		Deleter(const Deleter<T>& other) = default;
+		Deleter(Deleter<T>&& other) = default;
+
+		Deleter(HPool<T>* pool) noexcept;
+		void operator()(T* ptr) const noexcept;
+
+	private:
+		HPool<T>* pool_;
+
+	};
+
+	template<typename T, typename... Args>
+	std::shared_ptr<T> make_shared(HPool<T>& pool, Args... args);
+
+	template<typename T, typename... Args>
+	std::unique_ptr<T, hpool::Deleter<T>> make_unique(HPool<T>& pool, Args... args);
+
 } // namespace hpool
 
 
@@ -114,4 +135,41 @@ T* hpool::HPool<T, BlockSize>::parseNext() noexcept {
 	next_ = block.first;
 	++allocatedSize_;
 	return block.second;
+}
+
+
+template<typename T>
+hpool::Deleter<T>::Deleter(HPool<T>* pool) noexcept
+	: pool_(pool)
+{}
+
+
+template<typename T>
+void hpool::Deleter<T>::operator()(T* ptr) const noexcept {
+	pool_->free(ptr);
+}
+
+
+template<typename T, typename... Args>
+std::shared_ptr<T> hpool::make_shared(HPool<T>& pool, Args... args) {
+	hpool::Deleter<T> deleter (&pool);
+	T* ptr = pool.allocate();
+	if (!ptr) {
+		throw std::runtime_error("allocation failed");
+	}
+
+	std::construct_at<T>(ptr, std::forward<Args...>(args...));
+	return std::shared_ptr<T>(ptr, deleter);
+}
+
+
+template<typename T, typename... Args>
+std::unique_ptr<T, hpool::Deleter<T>> hpool::make_unique(HPool<T>& pool, Args... args) {
+	T* ptr = pool.allocate();
+	if (!ptr) {
+		throw std::runtime_error("allocation failed");
+	}
+
+	std::construct_at<T>(ptr, std::forward<Args...>(args...));
+	return std::unique_ptr<T, hpool::Deleter<T>>(ptr, hpool::Deleter<T>(&pool));
 }
