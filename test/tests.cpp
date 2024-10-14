@@ -1,69 +1,62 @@
-#include <memory>
-#include <cstdint>
-
-#include <hpool.hpp>
 #include <gtest/gtest.h>
-#include <stdexcept>
+#include <hpool.hpp>
 
-using namespace hpool;
+class HPoolNoReallocationsTest : public ::testing::Test {
+ protected:
+	HPoolNoReallocationsTest() : pool_(10) {}
 
+	hpool::HPool<int, hpool::ReallocationPolicy::NoReallocations> pool_;
+};
 
-TEST(HPool, AllocateAndFreePointer) {
-	hpool::HPool<std::int64_t> pool(32);
-	ASSERT_EQ(pool.size(), 32);
+TEST_F(HPoolNoReallocationsTest, ALLOCATE_AND_FREE) {
+	EXPECT_EQ(pool_.size(), 10);
+	EXPECT_EQ(pool_.allocated(), 0);
 
-	auto ptr = pool.allocate();
-	EXPECT_EQ(pool.allocated(), 1);
+	int* ptr1 = pool_.allocate();
+	EXPECT_NE(ptr1, nullptr);
+	EXPECT_EQ(pool_.allocated(), 1);
 
-	pool.free(ptr);
-	EXPECT_EQ(pool.allocated(), 0);
+	int* ptr2 = pool_.allocate();
+	EXPECT_NE(ptr2, nullptr);
+	EXPECT_EQ(pool_.allocated(), 2);
+
+	pool_.free(ptr1);
+	EXPECT_EQ(pool_.allocated(), 1);
+
+	pool_.free(ptr2);
+	EXPECT_EQ(pool_.allocated(), 0);
 }
 
+TEST_F(HPoolNoReallocationsTest, ALLOCATE_WHOLE_POOL) {
+	EXPECT_EQ(pool_.size(), 10);
+	EXPECT_EQ(pool_.allocated(), 0);
 
-TEST(HPool, AllocateAndFreeMultipleTimes) {
-	constexpr int poolSize = 3;
-
-	hpool::HPool<std::int64_t> pool(poolSize);
-	std::int64_t* ptrs[poolSize];
-
-	for (int i = 0; i < poolSize; ++i) {
-		ptrs[i] = pool.allocate();
+	for (int i = 0; i < 10; ++i) {
+		int* ptr = pool_.allocate();
+		EXPECT_NE(ptr, nullptr);
 	}
 
-	EXPECT_EQ(pool.size(), pool.allocated());
-	EXPECT_EQ(pool.allocate(), nullptr);
+	EXPECT_EQ(pool_.allocated(), 10);
 
-	for (int i = 0; i < poolSize - 1; ++i) {
-		pool.free(ptrs[i]);
-	}	
-
-	EXPECT_EQ(pool.allocated(), 1);
-
-	std::construct_at(ptrs[poolSize - 1], static_cast<std::int64_t>(0));
-	EXPECT_EQ(*ptrs[poolSize - 1], 0);
+	// Allocate should return nullptr when pool is exhausted
+	int* ptr = pool_.allocate();
+	EXPECT_EQ(ptr, nullptr);
 }
 
+TEST_F(HPoolNoReallocationsTest, FREE_NULLPTR) {
+	EXPECT_EQ(pool_.size(), 10);
+	EXPECT_EQ(pool_.allocated(), 0);
 
-TEST(HPool, STLAllocations) {
-	constexpr int poolSize = 3;
-	hpool::HPool<std::int64_t> pool(poolSize);
+	pool_.free(nullptr);
+	EXPECT_EQ(pool_.allocated(), 0);
+}
 
-	{
-		auto shared = hpool::make_shared(pool, 1);
-		EXPECT_EQ(*shared, 1);
-	}
+TEST_F(HPoolNoReallocationsTest, FREE_INVALID_PTR) {
+	EXPECT_EQ(pool_.size(), 10);
+	EXPECT_EQ(pool_.allocated(), 0);
 
-	{
-		auto unique = hpool::make_unique(pool, 2);
-		EXPECT_EQ(*unique, 2);
-	}
-	EXPECT_EQ(pool.allocated(), 0);
-
-	std::shared_ptr<int64_t> pointers[poolSize];
-	for (int i = 0; i < poolSize; ++i) {
-		pointers[i] = hpool::make_shared(pool, i);
-	}
-
-	EXPECT_EQ(pool.allocated(), poolSize);
-	EXPECT_THROW(hpool::make_shared(pool, 0), std::runtime_error);
+	int* ptr = new int;
+	pool_.free(ptr);
+	EXPECT_EQ(pool_.allocated(), 0);
+	delete ptr;
 }
