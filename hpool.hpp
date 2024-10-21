@@ -7,7 +7,6 @@
 #include <memory>
 #include <stdexcept>
 #include <utility>
-#include <vector>
 
 
 namespace hpool {
@@ -64,8 +63,8 @@ namespace hpool {
 		class IDeleter {
 		public:
 			IDeleter() = default;
-			IDeleter(const IDeleter<T>& other) = default;
-			IDeleter(IDeleter<T>&& other) = default;
+			IDeleter(const IDeleter<T>& other) { }
+			IDeleter(IDeleter<T>&& other) { }
 
 			void operator()(T* ptr) const noexcept;
 		};
