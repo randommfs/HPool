@@ -175,7 +175,6 @@ TEST_F(HPoolOffsetReallocTest, MULTIPLE_POINTERS_VALIDATION) {
 	for (int i = 0; i < 20; ++i) {
 		pointers[i] = pool_.allocate();
 		*pointers[i] = i; 
-		std::cout << i << '\n';
 	}
 
 	// Validate values
