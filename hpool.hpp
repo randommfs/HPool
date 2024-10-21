@@ -62,6 +62,8 @@ namespace hpool {
 
 		template<typename T, typename... Args>
 		class IDeleter {
+		public:
+			IDeleter() = default;
 			IDeleter(const IDeleter<T>& other) = default;
 			IDeleter(IDeleter<T>&& other) = default;
 
@@ -126,6 +128,12 @@ namespace hpool {
 
 	template<typename T, typename... Args>
 	std::unique_ptr<T, hpool::Deleter<T, ReallocationPolicy::NoReallocations>> make_unique(HPool<T, ReallocationPolicy::NoReallocations>& pool, Args... args);
+
+	template<typename T, typename... Args>
+	std::shared_ptr<T> make_shared(HPool<T, ReallocationPolicy::OffsetRealloc>& pool, Args... args);
+
+	template<typename T, typename... Args>
+	std::unique_ptr<T, hpool::Deleter<T, ReallocationPolicy::OffsetRealloc>> make_unique(HPool<T, ReallocationPolicy::OffsetRealloc>& pool, Args... args);
 
 } // namespace hpool
 
@@ -194,7 +202,7 @@ void hpool::HPool<T, hpool::ReallocationPolicy::NoReallocations>::free(T *ptr) n
 // Deleter NoReallocations implementation
 template<typename T>
 hpool::Deleter<T, hpool::ReallocationPolicy::NoReallocations>::Deleter(hpool::HPool<T, hpool::ReallocationPolicy::NoReallocations>& pool)
-	: pool_(pool)
+	: pool_(&pool)
 {}
 
 template<typename T>
@@ -223,7 +231,7 @@ std::unique_ptr<T, hpool::Deleter<T, hpool::ReallocationPolicy::NoReallocations>
 	}
 
 	std::construct_at<T>(ptr, std::forward<Args...>(args...));
-	return std::unique_ptr<T, hpool::Deleter<T, hpool::ReallocationPolicy::NoReallocations>>(ptr, hpool::Deleter<T, hpool::ReallocationPolicy::NoReallocations>(&pool));
+	return std::unique_ptr<T, hpool::Deleter<T, hpool::ReallocationPolicy::NoReallocations>>(ptr, hpool::Deleter<T, hpool::ReallocationPolicy::NoReallocations>(pool));
 }
 
 // HPool OffsetRealloc implementation
@@ -249,16 +257,19 @@ T* hpool::HPool<T, hpool::ReallocationPolicy::OffsetRealloc>::allocate() noexcep
 		auto ptr = std::make_unique<char[]>((sizeof(T) + sizeof(std::uint32_t)) * new_size);
 		if (!ptr)
 			return nullptr;
-		std::copy_n(this->pool_.get(), this->totalSize_, ptr.get());
+		std::memcpy(ptr.get(), this->pool_.get(), (sizeof(T) + sizeof(std::uint32_t)) * this->totalSize_);
 		offset_ = reinterpret_cast<std::uint8_t*>(ptr.get()) - reinterpret_cast<std::uint8_t*>(this->pool_.get());
-		this->pool_.release();
 		this->totalSize_ = new_size;
 		this->pool_.swap(ptr);
+		++this->next_;
 
+		for (std::uint32_t i = (new_size / 2) - 1; i < this->totalSize_; ++i) {
+			auto block = this->parseAt(i);
+			block.first = i + 1;
+		}
+		auto last = this->parseAt(this->totalSize_ - 1);
+		last.first = this->totalSize_ - 1;
 
-		for (std::uint32_t i = (this->totalSize_ / 2) - 1; i < this->totalSize_; ++i)
-			this->parseAt(i).first = i + 1;
-		this->parseAt(this->totalSize_ - 1).first = this->totalSize_ - 1;
 	}
 
 	return subtractOffset(this->parseNext());
@@ -283,4 +294,39 @@ void hpool::HPool<T, hpool::ReallocationPolicy::OffsetRealloc>::free(T* ptr) noe
 	this->next_ = shift;
 
 	--this->allocatedSize_;
+}
+
+// Deleter OffsetRealloc implementation
+template<typename T>
+hpool::Deleter<T, hpool::ReallocationPolicy::OffsetRealloc>::Deleter(hpool::HPool<T, hpool::ReallocationPolicy::OffsetRealloc>& pool)
+	: pool_(&pool)
+{}
+
+template<typename T>
+void hpool::Deleter<T, hpool::ReallocationPolicy::OffsetRealloc>::operator()(T* ptr) const noexcept {
+	pool_->free(ptr);
+}
+
+// STD helpers implemented with OffsetRealloc policy
+template<typename T, typename... Args>
+std::shared_ptr<T> hpool::make_shared(HPool<T, hpool::ReallocationPolicy::OffsetRealloc>& pool, Args... args) {
+	hpool::Deleter<T, hpool::ReallocationPolicy::OffsetRealloc> deleter (&pool);
+	T* ptr = pool.allocate();
+	if (!ptr) {
+		throw std::runtime_error("allocation failed");
+	}
+
+	std::construct_at<T>(ptr, std::forward<Args...>(args...));
+	return std::shared_ptr<T>(ptr, deleter);
+}
+
+template<typename T, typename... Args>
+std::unique_ptr<T, hpool::Deleter<T, hpool::ReallocationPolicy::OffsetRealloc>> hpool::make_unique(HPool<T, hpool::ReallocationPolicy::OffsetRealloc>& pool, Args... args) {
+	T* ptr = pool.allocate();
+	if (!ptr) {
+		throw std::runtime_error("allocation failed");
+	}
+
+	std::construct_at<T>(ptr, std::forward<Args...>(args...));
+	return std::unique_ptr<T, hpool::Deleter<T, hpool::ReallocationPolicy::OffsetRealloc>>(ptr, hpool::Deleter<T, hpool::ReallocationPolicy::OffsetRealloc>(pool));
 }
