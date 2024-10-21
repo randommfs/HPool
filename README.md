@@ -82,13 +82,22 @@ uint32_t count = pool.get_allocated_elements();
 
 I compared this library to boost's object_pool using my own benchmarking lib called [HBench](https://github.com/randommfs/HBench). You can find it in [bench](bench) directory in project root.
 
-**Pools has been tested in different scopes, on 524288 elements. Compiled with -O3. CPU - AMD FX-8350 4GHz. Test results are average from 3 iterations.**
-
-| Benchmark                       	| Result      	|
-|---------------------------------	|-------------	|
-| boost::object_pool  allocation  	| 5ms        	|
-| boost::object_pool  linear free 	| 5m 27s 404ms |
-| boost::object_pool  random free 	| 2m 2s 500ms 	|
-| hpool::HPool  allocation        	| 5ms         	|
-| hpool::HPool  linear free       	| 1ms         	|
-| hpool::HPool  random free       	| 5ms         	|
+**Pools has been tested in different scopes, on 524288 elements. Compiled with -O3. CPU - AMD FX-8350 4GHz. Test results are average from 3 iterations.**  
+**Every test has two variants - on size_t and 3-dimensional vector, which has 3 double values in it.**  
+| Benchmark                       	          | Result      	|
+|--------------------------------------------|--------------|
+| boost::object_pool size_t  allocation  	| 12ms        	|
+| boost::object_pool size_t linear free      | 6m 19s 384ms |
+| boost::object_pool size_t random free 	| 2m 11s 426ms |
+| boost::object_pool vector  allocation  	| 20ms        	|
+| boost::object_pool vector linear free      | 52m 27s 631ms|
+| hpool::HPool no_realloc size_t allocation  | 3ms         	|
+| hpool::HPool no_realloc size_t linear free | 2ms         	|
+| hpool::HPool no_realloc size_t random free | 3ms         	|
+| hpool::HPool no_realloc vector allocation  | 3ms         	|
+| hpool::HPool no_realloc vector linear free | 3ms         	|
+| hpool::HPool realloc size_t allocation     | 11ms         |
+| hpool::HPool realloc size_t linear free    | 1ms         	|
+| hpool::HPool realloc size_t random free    | 3ms         	|
+| hpool::HPool realloc vector allocation     | 22ms         |
+| hpool::HPool realloc vector linear free    | 2ms         	|
