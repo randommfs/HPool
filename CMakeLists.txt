@@ -8,6 +8,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 add_library(hpool INTERFACE)
 add_library(hpool::hpool ALIAS hpool)
+target_sources(hpool INTERFACE hpool.hpp)
 target_include_directories(hpool INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_executable(tests test/tests.cpp)
