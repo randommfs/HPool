@@ -122,17 +122,11 @@ namespace hpool {
 		void operator()(T* ptr) const noexcept;
 	};
 
-	template<typename T, typename... Args>
-	std::shared_ptr<T> make_shared(HPool<T, ReallocationPolicy::NoReallocations>& pool, Args... args);
+	template<typename T,ReallocationPolicy ReallocPolicy, typename... Args>
+	std::shared_ptr<T> make_shared(HPool<T, ReallocPolicy>& pool, Args&&... args);
 
-	template<typename T, typename... Args>
-	std::unique_ptr<T, hpool::Deleter<T, ReallocationPolicy::NoReallocations>> make_unique(HPool<T, ReallocationPolicy::NoReallocations>& pool, Args... args);
-
-	template<typename T, typename... Args>
-	std::shared_ptr<T> make_shared(HPool<T, ReallocationPolicy::OffsetRealloc>& pool, Args... args);
-
-	template<typename T, typename... Args>
-	std::unique_ptr<T, hpool::Deleter<T, ReallocationPolicy::OffsetRealloc>> make_unique(HPool<T, ReallocationPolicy::OffsetRealloc>& pool, Args... args);
+	template<typename T,ReallocationPolicy ReallocPolicy, typename... Args>
+	std::unique_ptr<T, Deleter<T, ReallocPolicy>> make_unique(HPool<T, ReallocPolicy>& pool, Args&&... args);
 
 } // namespace hpool
 
@@ -209,28 +203,28 @@ void hpool::Deleter<T, hpool::ReallocationPolicy::NoReallocations>::operator()(T
 	pool_->free(ptr);
 }
 
-// STD helpers implemented with NoReallocation policy
-template<typename T, typename... Args>
-std::shared_ptr<T> hpool::make_shared(HPool<T, hpool::ReallocationPolicy::NoReallocations>& pool, Args... args) {
-	hpool::Deleter<T, hpool::ReallocationPolicy::NoReallocations> deleter (&pool);
+// STL smart pointers helpers implemented for HPool
+template<typename T,hpool::ReallocationPolicy ReallocPolicy, typename... Args>
+std::shared_ptr<T> hpool::make_shared(HPool<T, ReallocPolicy>& pool, Args&&... args) {
+	hpool::Deleter<T, ReallocPolicy> deleter (&pool);
 	T* ptr = pool.allocate();
 	if (!ptr) {
 		throw std::runtime_error("allocation failed");
 	}
 
-	std::construct_at<T>(ptr, std::forward<Args...>(args...));
+	std::construct_at<T>(ptr, std::forward<Args>(args)...);
 	return std::shared_ptr<T>(ptr, deleter);
 }
 
-template<typename T, typename... Args>
-std::unique_ptr<T, hpool::Deleter<T, hpool::ReallocationPolicy::NoReallocations>> hpool::make_unique(HPool<T, hpool::ReallocationPolicy::NoReallocations>& pool, Args... args) {
+template<typename T,hpool::ReallocationPolicy ReallocPolicy, typename... Args>
+std::unique_ptr<T, hpool::Deleter<T, ReallocPolicy>> hpool::make_unique(HPool<T, ReallocPolicy>& pool, Args&&... args) {
 	T* ptr = pool.allocate();
 	if (!ptr) {
 		throw std::runtime_error("allocation failed");
 	}
 
-	std::construct_at<T>(ptr, std::forward<Args...>(args...));
-	return std::unique_ptr<T, hpool::Deleter<T, hpool::ReallocationPolicy::NoReallocations>>(ptr, hpool::Deleter<T, hpool::ReallocationPolicy::NoReallocations>(pool));
+	std::construct_at<T>(ptr, std::forward<Args>(args)...);
+	return std::unique_ptr<T, hpool::Deleter<T, ReallocPolicy>>(ptr, hpool::Deleter<T, ReallocPolicy>(pool));
 }
 
 // HPool OffsetRealloc implementation
@@ -306,26 +300,3 @@ void hpool::Deleter<T, hpool::ReallocationPolicy::OffsetRealloc>::operator()(T* 
 	pool_->free(ptr);
 }
 
-// STD helpers implemented with OffsetRealloc policy
-template<typename T, typename... Args>
-std::shared_ptr<T> hpool::make_shared(HPool<T, hpool::ReallocationPolicy::OffsetRealloc>& pool, Args... args) {
-	hpool::Deleter<T, hpool::ReallocationPolicy::OffsetRealloc> deleter (&pool);
-	T* ptr = pool.allocate();
-	if (!ptr) {
-		throw std::runtime_error("allocation failed");
-	}
-
-	std::construct_at<T>(ptr, std::forward<Args...>(args...));
-	return std::shared_ptr<T>(ptr, deleter);
-}
-
-template<typename T, typename... Args>
-std::unique_ptr<T, hpool::Deleter<T, hpool::ReallocationPolicy::OffsetRealloc>> hpool::make_unique(HPool<T, hpool::ReallocationPolicy::OffsetRealloc>& pool, Args... args) {
-	T* ptr = pool.allocate();
-	if (!ptr) {
-		throw std::runtime_error("allocation failed");
-	}
-
-	std::construct_at<T>(ptr, std::forward<Args...>(args...));
-	return std::unique_ptr<T, hpool::Deleter<T, hpool::ReallocationPolicy::OffsetRealloc>>(ptr, hpool::Deleter<T, hpool::ReallocationPolicy::OffsetRealloc>(pool));
-}
