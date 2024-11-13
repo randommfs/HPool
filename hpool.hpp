@@ -102,22 +102,12 @@ namespace hpool {
 	template<typename T, ReallocationPolicy Policy, typename Enable = void>
 	class Deleter;
 
-	template<typename T>
-	class Deleter<T, ReallocationPolicy::NoReallocations> : private _internal::IDeleter<T> {
+	template<typename T,ReallocationPolicy ReallocPolicy>
+	class Deleter<T, ReallocPolicy> : private _internal::IDeleter<T> {
 	private:
-		HPool<T, ReallocationPolicy::NoReallocations>* pool_;
+		HPool<T, ReallocPolicy>* pool_;
 	public:
-		Deleter(HPool<T, ReallocationPolicy::NoReallocations>& pool);
-
-		void operator()(T* ptr) const noexcept;
-	};
-
-	template<typename T>
-	class Deleter<T, ReallocationPolicy::OffsetRealloc> : private _internal::IDeleter<T> {
-	private:
-		HPool<T, ReallocationPolicy::OffsetRealloc>* pool_;
-	public:
-		Deleter(HPool<T, ReallocationPolicy::OffsetRealloc>& pool);
+		Deleter(HPool<T, ReallocPolicy>& pool);
 
 		void operator()(T* ptr) const noexcept;
 	};
@@ -198,14 +188,14 @@ void hpool::HPool<T, hpool::ReallocationPolicy::NoReallocations>::free(T *ptr) n
 	--this->allocatedSize_;
 }
 
-// Deleter NoReallocations implementation
-template<typename T>
-hpool::Deleter<T, hpool::ReallocationPolicy::NoReallocations>::Deleter(hpool::HPool<T, hpool::ReallocationPolicy::NoReallocations>& pool)
+// Deleter implementation
+template<typename T,hpool::ReallocationPolicy ReallocPolicy>
+hpool::Deleter<T, ReallocPolicy>::Deleter(hpool::HPool<T, ReallocPolicy>& pool)
 	: pool_(&pool)
 {}
 
-template<typename T>
-void hpool::Deleter<T, hpool::ReallocationPolicy::NoReallocations>::operator()(T* ptr) const noexcept {
+template<typename T,hpool::ReallocationPolicy ReallocPolicy>
+void hpool::Deleter<T, ReallocPolicy>::operator()(T* ptr) const noexcept {
 	pool_->free(ptr);
 }
 
@@ -294,18 +284,6 @@ void hpool::HPool<T, hpool::ReallocationPolicy::OffsetRealloc>::free(T* ptr) noe
 
 	--this->allocatedSize_;
 }
-
-// Deleter OffsetRealloc implementation
-template<typename T>
-hpool::Deleter<T, hpool::ReallocationPolicy::OffsetRealloc>::Deleter(hpool::HPool<T, hpool::ReallocationPolicy::OffsetRealloc>& pool)
-	: pool_(&pool)
-{}
-
-template<typename T>
-void hpool::Deleter<T, hpool::ReallocationPolicy::OffsetRealloc>::operator()(T* ptr) const noexcept {
-	pool_->free(ptr);
-}
-
 // STD helpers implemented with OffsetRealloc policy
 template<typename T, typename... Args>
 std::shared_ptr<T> hpool::make_shared(HPool<T, hpool::ReallocationPolicy::OffsetRealloc>& pool, Args... args) {
