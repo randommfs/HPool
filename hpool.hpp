@@ -6,7 +6,9 @@
 #include <cstdlib>
 #include <memory>
 #include <stdexcept>
+#include <type_traits>
 #include <utility>
+#include <iostream>
 
 
 namespace hpool {
@@ -18,16 +20,20 @@ namespace hpool {
 	};
 
 	namespace _internal {
+		template<typename T, ReallocationPolicy Policy>
+		class IPointer;
+
 		/* Generic pool interface. Holds generic function implementations */
-		template<typename T>
+		template<typename T, ReallocationPolicy Policy>
 		class IHPool {
 		protected:
+			friend class IPointer<T, Policy>;
 			std::unique_ptr<char[]> pool_;
 			std::uint32_t totalSize_;
 			std::uint32_t allocatedSize_;
 			std::uint32_t next_;
 
-			std::pair<std::uint32_t&, T*> parseAt(std::uint32_t hint) noexcept;
+			std::pair<std::uint32_t&, T*> parseAt(std::uint32_t hint, char* ptr = nullptr) noexcept;
 			T* parseNext() noexcept;
 		public:
 			IHPool(std::uint32_t size)
@@ -49,9 +55,6 @@ namespace hpool {
 
 			}
 
-			virtual T* allocate() noexcept = 0;
-			virtual void free(T* pointer) noexcept = 0;
-
 			/* Implemented in interface - doesn't depend on derived classes */
 			std::uint32_t size() const noexcept;
 			std::uint32_t allocated() const noexcept;
@@ -68,26 +71,66 @@ namespace hpool {
 
 			void operator()(T* ptr) const noexcept;
 		};
+
+		template<typename T, ReallocationPolicy Policy>
+		class IPointer {
+		private:
+			friend class IHPool<T, Policy>;
+		public:
+			virtual T& operator*() = 0;
+			virtual T& operator->() = 0;
+			virtual T* operator+() = 0;
+			virtual T* operator-() = 0;
+			virtual operator bool() = 0;
+		};
 	}
 
 	template<typename T, ReallocationPolicy Policy>
 	class HPool;
+	template<typename T, ReallocationPolicy Policy>
+	class Ptr;
 
 	template<typename T>
-	class HPool<T, ReallocationPolicy::NoReallocations> : public _internal::IHPool<T> {
-	private:
-
+	class HPool<T, ReallocationPolicy::NoReallocations> : public _internal::IHPool<T, ReallocationPolicy::NoReallocations> {
 	public:
 		explicit HPool(std::uint32_t);
 
-		virtual T* allocate() noexcept override;
-		virtual void free(T*) noexcept override;
+		Ptr<T, ReallocationPolicy::NoReallocations> allocate() noexcept;
+		void free(Ptr<T, ReallocationPolicy::NoReallocations>&) noexcept;
+	};
+
+	template<typename T>
+	class Ptr<T, ReallocationPolicy::NoReallocations> : public _internal::IPointer<T, ReallocationPolicy::NoReallocations> {
+	private:
+		friend class HPool<T, ReallocationPolicy::NoReallocations>;
+		T* ptr_;
+		Ptr<T, ReallocationPolicy::NoReallocations>(T* ptr) : ptr_(ptr) { }
+	public:
+		Ptr<T, ReallocationPolicy::NoReallocations>() = default;
+		Ptr<T, ReallocationPolicy::NoReallocations>(const std::nullptr_t) : ptr_(nullptr) { }
+		Ptr<T, ReallocationPolicy::NoReallocations>(const Ptr<T, ReallocationPolicy::NoReallocations>& other) {
+			ptr_ = other.ptr_;
+		}
+		Ptr<T, ReallocationPolicy::NoReallocations>& operator=(Ptr<T, ReallocationPolicy::NoReallocations> other) {
+			ptr_ = other.ptr_;
+			return *this;
+		}
+		T& operator*() override { return *ptr_; }
+		T& operator->() override { return *ptr_; }
+		T* operator+() override { return ptr_; }
+		T* operator-() override { return ptr_; }
+		bool operator==(const std::nullptr_t) const { return ptr_ == nullptr; }
+		bool operator!=(const std::nullptr_t) const { return ptr_ != nullptr; }
+		bool operator==(Ptr<T, ReallocationPolicy::NoReallocations> ptr) const { return ptr_ == ptr.ptr_; }
+		bool operator!=(Ptr<T, ReallocationPolicy::NoReallocations> ptr) const { return ptr_ != ptr.ptr_; }
+		explicit operator bool() override { return ptr_ != nullptr; }
 	};
 
 
 	template<typename T>
-	class HPool<T, ReallocationPolicy::OffsetRealloc> : public _internal::IHPool<T> {
+	class HPool<T, ReallocationPolicy::OffsetRealloc> final : public _internal::IHPool<T, ReallocationPolicy::NoReallocations> {
 	private:
+		friend class Ptr<T, ReallocationPolicy::OffsetRealloc>;
 		std::ptrdiff_t offset_;
 
 		T* addOffset(T*);
@@ -95,8 +138,39 @@ namespace hpool {
 	public:
 		explicit HPool(std::uint32_t);
 
-		virtual T* allocate() noexcept;
-		virtual void free(T*) noexcept;
+		Ptr<T, ReallocationPolicy::OffsetRealloc> allocate() noexcept;
+		void free(Ptr<T, ReallocationPolicy::OffsetRealloc>&) noexcept;
+	};
+
+	template<typename T>
+	class Ptr<T, ReallocationPolicy::OffsetRealloc> : public _internal::IPointer<T, ReallocationPolicy::OffsetRealloc> {
+	private:
+		friend class HPool<T, ReallocationPolicy::OffsetRealloc>;
+		HPool<T, ReallocationPolicy::OffsetRealloc>* pool_;
+		T* ptr_;
+		Ptr<T, ReallocationPolicy::OffsetRealloc>(T* ptr, HPool<T, ReallocationPolicy::OffsetRealloc>& pool) : ptr_(ptr), pool_(&pool) { }
+	public:
+		Ptr<T, ReallocationPolicy::OffsetRealloc>() = default;
+		Ptr<T, ReallocationPolicy::OffsetRealloc>(const std::nullptr_t) : pool_(nullptr), ptr_(nullptr) { }
+		Ptr<T, ReallocationPolicy::OffsetRealloc>(HPool<T, ReallocationPolicy::OffsetRealloc>& pool) : pool_(&pool), ptr_(nullptr) { }
+		Ptr<T, ReallocationPolicy::OffsetRealloc>(const Ptr<T, ReallocationPolicy::OffsetRealloc>& other) {
+			pool_ = other.pool_;
+			ptr_ = other.ptr_;
+		}
+		Ptr<T, ReallocationPolicy::OffsetRealloc>& operator=(Ptr<T, ReallocationPolicy::OffsetRealloc> other) {
+			pool_ = other.pool_;
+			ptr_ = other.ptr_;
+			return *this;
+		}
+		T& operator*() override { return *pool_->addOffset(ptr_); }
+		T& operator->() override { return *pool_->addOffset(ptr_); }
+		T* operator+() override { return pool_->addOffset(ptr_); }
+		T* operator-() override { return pool_->addOffset(ptr_); }
+		bool operator==(const std::nullptr_t) const { return ptr_ == nullptr; }
+		bool operator!=(const std::nullptr_t) const { return ptr_ != nullptr; }
+		bool operator==(Ptr<T, ReallocationPolicy::OffsetRealloc> ptr) const { return ptr_ == ptr.ptr_; }
+		bool operator!=(Ptr<T, ReallocationPolicy::OffsetRealloc> ptr) const { return ptr_ != ptr.ptr_; }
+		explicit operator bool() override { return ptr_ != nullptr; }
 	};
 
 	template<typename T, ReallocationPolicy Policy, typename Enable = void>
@@ -112,42 +186,31 @@ namespace hpool {
 		void operator()(T* ptr) const noexcept;
 	};
 
-	template<typename T, typename... Args>
-	std::shared_ptr<T> make_shared(HPool<T, ReallocationPolicy::NoReallocations>& pool, Args... args);
-
-	template<typename T, typename... Args>
-	std::unique_ptr<T, hpool::Deleter<T, ReallocationPolicy::NoReallocations>> make_unique(HPool<T, ReallocationPolicy::NoReallocations>& pool, Args... args);
-
-	template<typename T, typename... Args>
-	std::shared_ptr<T> make_shared(HPool<T, ReallocationPolicy::OffsetRealloc>& pool, Args... args);
-
-	template<typename T, typename... Args>
-	std::unique_ptr<T, hpool::Deleter<T, ReallocationPolicy::OffsetRealloc>> make_unique(HPool<T, ReallocationPolicy::OffsetRealloc>& pool, Args... args);
-
 } // namespace hpool
 
 // Generic implementations
-template <typename T> 
-std::uint32_t hpool::_internal::IHPool<T>::size() const noexcept {
+template <typename T, hpool::ReallocationPolicy Policy> 
+std::uint32_t hpool::_internal::IHPool<T, Policy>::size() const noexcept {
 	return totalSize_;
 }
 
-template <typename T> 
-std::uint32_t hpool::_internal::IHPool<T>::allocated() const noexcept {
+template <typename T, hpool::ReallocationPolicy Policy> 
+std::uint32_t hpool::_internal::IHPool<T, Policy>::allocated() const noexcept {
 	return allocatedSize_;
 }
 
-template <typename T> 
-std::pair<std::uint32_t&, T*> hpool::_internal::IHPool<T>::parseAt(std::uint32_t hint) noexcept {
-	char* shift = reinterpret_cast<char*>(this->pool_.get() + hint * (sizeof(T) + sizeof(std::uint32_t)));
+template <typename T, hpool::ReallocationPolicy Policy> 
+std::pair<std::uint32_t&, T*> hpool::_internal::IHPool<T, Policy>::parseAt(std::uint32_t hint, char* pl) noexcept {
+	char* pool = pl ? pl : this->pool_.get();
+	char* shift = reinterpret_cast<char*>(pool + hint * (sizeof(T) + sizeof(std::uint32_t)));
 	return std::make_pair(
 		std::ref(reinterpret_cast<std::uint32_t&>(*shift)),
 		reinterpret_cast<T*>(shift + sizeof(std::uint32_t))
 	);
 }
 
-template <typename T> 
-T* hpool::_internal::IHPool<T>::parseNext() noexcept {
+template <typename T, hpool::ReallocationPolicy Policy> 
+T* hpool::_internal::IHPool<T, Policy>::parseNext() noexcept {
 	auto block = parseAt(this->next_);
 
 	this->next_ = block.first;
@@ -158,23 +221,23 @@ T* hpool::_internal::IHPool<T>::parseNext() noexcept {
 // HPool NoReallocations implementation
 template<typename T>
 hpool::HPool<T, hpool::ReallocationPolicy::NoReallocations>::HPool(std::uint32_t size)
-	: hpool::_internal::IHPool<T>(size) { }
+	: hpool::_internal::IHPool<T, hpool::ReallocationPolicy::NoReallocations>(size) { }
 
 template <typename T>
-T* hpool::HPool<T, hpool::ReallocationPolicy::NoReallocations>::allocate() noexcept {
+hpool::Ptr<T, hpool::ReallocationPolicy::NoReallocations> hpool::HPool<T, hpool::ReallocationPolicy::NoReallocations>::allocate() noexcept {
 	if (this->allocatedSize_ == this->totalSize_) {
 		return nullptr;
 	}
 
-	return this->parseNext();
+	return Ptr<T, NoReallocations>(this->parseNext());
 }
 
 template <typename T> 
-void hpool::HPool<T, hpool::ReallocationPolicy::NoReallocations>::free(T *ptr) noexcept {
+void hpool::HPool<T, hpool::ReallocationPolicy::NoReallocations>::free(hpool::Ptr<T, hpool::ReallocationPolicy::NoReallocations>& ptr) noexcept {
 	if (!ptr)
 		return;
 	
-	std::ptrdiff_t shift = reinterpret_cast<std::ptrdiff_t>(ptr) - 
+	std::ptrdiff_t shift = reinterpret_cast<std::ptrdiff_t>(ptr.ptr_) - 
 		reinterpret_cast<std::ptrdiff_t>(this->pool_.get());
 	if (shift < 0 || shift >= this->totalSize_ * sizeof(T)) {
 		return;
@@ -199,34 +262,10 @@ void hpool::Deleter<T, ReallocPolicy>::operator()(T* ptr) const noexcept {
 	pool_->free(ptr);
 }
 
-// STD helpers implemented with NoReallocation policy
-template<typename T, typename... Args>
-std::shared_ptr<T> hpool::make_shared(HPool<T, hpool::ReallocationPolicy::NoReallocations>& pool, Args... args) {
-	hpool::Deleter<T, hpool::ReallocationPolicy::NoReallocations> deleter (&pool);
-	T* ptr = pool.allocate();
-	if (!ptr) {
-		throw std::runtime_error("allocation failed");
-	}
-
-	std::construct_at<T>(ptr, std::forward<Args...>(args...));
-	return std::shared_ptr<T>(ptr, deleter);
-}
-
-template<typename T, typename... Args>
-std::unique_ptr<T, hpool::Deleter<T, hpool::ReallocationPolicy::NoReallocations>> hpool::make_unique(HPool<T, hpool::ReallocationPolicy::NoReallocations>& pool, Args... args) {
-	T* ptr = pool.allocate();
-	if (!ptr) {
-		throw std::runtime_error("allocation failed");
-	}
-
-	std::construct_at<T>(ptr, std::forward<Args...>(args...));
-	return std::unique_ptr<T, hpool::Deleter<T, hpool::ReallocationPolicy::NoReallocations>>(ptr, hpool::Deleter<T, hpool::ReallocationPolicy::NoReallocations>(pool));
-}
-
 // HPool OffsetRealloc implementation
 template<typename T>
 hpool::HPool<T, hpool::ReallocationPolicy::OffsetRealloc>::HPool(std::uint32_t size)
-	: hpool::_internal::IHPool<T>(size)
+	: hpool::_internal::IHPool<T, hpool::ReallocationPolicy::NoReallocations>(size)
 	, offset_(0) { }
 
 template<typename T>
@@ -240,13 +279,22 @@ T* hpool::HPool<T, hpool::ReallocationPolicy::OffsetRealloc>::subtractOffset(T* 
 }
 
 template <typename T>
-T* hpool::HPool<T, hpool::ReallocationPolicy::OffsetRealloc>::allocate() noexcept {
+hpool::Ptr<T, hpool::ReallocationPolicy::OffsetRealloc> hpool::HPool<T, hpool::ReallocationPolicy::OffsetRealloc>::allocate() noexcept {
 	if (this->allocatedSize_ == this->totalSize_) {
 		std::size_t new_size = this->totalSize_ * 2;
 		auto ptr = std::make_unique<char[]>((sizeof(T) + sizeof(std::uint32_t)) * new_size);
 		if (!ptr)
 			return nullptr;
-		std::memcpy(ptr.get(), this->pool_.get(), (sizeof(T) + sizeof(std::uint32_t)) * this->totalSize_);
+		if constexpr (!std::is_trivially_copyable_v<T>) {
+			for (std::uint32_t i = 0; i < this->totalSize_; ++i) {
+				auto& src = *reinterpret_cast<T*>(this->parseAt(i).second);
+				auto& dst = *reinterpret_cast<T*>(this->parseAt(i, ptr.get()).second);
+				std::construct_at(&dst, std::move(src));
+				std::destroy_at(&src);
+			}
+		} else {
+			std::memcpy(ptr.get(), this->pool_.get(), (sizeof(T) + sizeof(std::uint32_t)) * this->totalSize_);
+		}
 		offset_ = reinterpret_cast<std::uint8_t*>(ptr.get()) - reinterpret_cast<std::uint8_t*>(this->pool_.get());
 		this->totalSize_ = new_size;
 		this->pool_.swap(ptr);
@@ -261,17 +309,17 @@ T* hpool::HPool<T, hpool::ReallocationPolicy::OffsetRealloc>::allocate() noexcep
 
 	}
 
-	return subtractOffset(this->parseNext());
+	return Ptr<T, ReallocationPolicy::OffsetRealloc>{subtractOffset(this->parseNext()), *this};
 }
 
 template<typename T>
-void hpool::HPool<T, hpool::ReallocationPolicy::OffsetRealloc>::free(T* ptr) noexcept {
+void hpool::HPool<T, hpool::ReallocationPolicy::OffsetRealloc>::free(Ptr<T, hpool::ReallocationPolicy::OffsetRealloc>& ptr) noexcept {
 	if (!ptr)
 		return;
 
-	ptr = addOffset(ptr);
+	auto ptr_ = addOffset(ptr.ptr_);
 	
-	std::ptrdiff_t shift = reinterpret_cast<std::ptrdiff_t>(ptr) - 
+	std::ptrdiff_t shift = reinterpret_cast<std::ptrdiff_t>(ptr_) - 
 		reinterpret_cast<std::ptrdiff_t>(this->pool_.get());
 	if (shift < 0 || shift >= this->totalSize_ * sizeof(T)) {
 		return;
@@ -283,27 +331,4 @@ void hpool::HPool<T, hpool::ReallocationPolicy::OffsetRealloc>::free(T* ptr) noe
 	this->next_ = shift;
 
 	--this->allocatedSize_;
-}
-// STD helpers implemented with OffsetRealloc policy
-template<typename T, typename... Args>
-std::shared_ptr<T> hpool::make_shared(HPool<T, hpool::ReallocationPolicy::OffsetRealloc>& pool, Args... args) {
-	hpool::Deleter<T, hpool::ReallocationPolicy::OffsetRealloc> deleter (&pool);
-	T* ptr = pool.allocate();
-	if (!ptr) {
-		throw std::runtime_error("allocation failed");
-	}
-
-	std::construct_at<T>(ptr, std::forward<Args...>(args...));
-	return std::shared_ptr<T>(ptr, deleter);
-}
-
-template<typename T, typename... Args>
-std::unique_ptr<T, hpool::Deleter<T, hpool::ReallocationPolicy::OffsetRealloc>> hpool::make_unique(HPool<T, hpool::ReallocationPolicy::OffsetRealloc>& pool, Args... args) {
-	T* ptr = pool.allocate();
-	if (!ptr) {
-		throw std::runtime_error("allocation failed");
-	}
-
-	std::construct_at<T>(ptr, std::forward<Args...>(args...));
-	return std::unique_ptr<T, hpool::Deleter<T, hpool::ReallocationPolicy::OffsetRealloc>>(ptr, hpool::Deleter<T, hpool::ReallocationPolicy::OffsetRealloc>(pool));
 }

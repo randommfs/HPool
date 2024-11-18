@@ -1,29 +1,32 @@
 #include <gtest/gtest.h>
 #include <hpool.hpp>
 
+using hpool::ReallocationPolicy::NoReallocations;
+using hpool::ReallocationPolicy::OffsetRealloc;
+
 class HPoolNoReallocationsTest : public ::testing::Test {
  protected:
 	HPoolNoReallocationsTest() : pool_(10) {}
 
-	hpool::HPool<int, hpool::ReallocationPolicy::NoReallocations> pool_;
+	hpool::HPool<int, NoReallocations> pool_;
 };
 
 class HPoolOffsetReallocTest : public ::testing::Test {
  protected:
 	HPoolOffsetReallocTest() : pool_(10) {}
 
-	hpool::HPool<int, hpool::ReallocationPolicy::OffsetRealloc> pool_;
+	hpool::HPool<int, OffsetRealloc> pool_;
 };
 
 TEST_F(HPoolNoReallocationsTest, ALLOCATE_AND_FREE) {
 	EXPECT_EQ(pool_.size(), 10);
 	EXPECT_EQ(pool_.allocated(), 0);
 
-	int* ptr1 = pool_.allocate();
+	auto ptr1 = pool_.allocate();
 	EXPECT_NE(ptr1, nullptr);
 	EXPECT_EQ(pool_.allocated(), 1);
 
-	int* ptr2 = pool_.allocate();
+	auto ptr2 = pool_.allocate();
 	EXPECT_NE(ptr2, nullptr);
 	EXPECT_EQ(pool_.allocated(), 2);
 
@@ -38,9 +41,9 @@ TEST_F(HPoolNoReallocationsTest, ALLOCATE_WHOLE_POOL) {
 	EXPECT_EQ(pool_.size(), 10);
 	EXPECT_EQ(pool_.allocated(), 0);
 
-	int* prev_ptr = nullptr;
+	hpool::Ptr<int, NoReallocations> prev_ptr;
 	for (int i = 0; i < 10; ++i) {
-		int* ptr = pool_.allocate();
+		auto ptr = pool_.allocate();
 		EXPECT_NE(ptr, nullptr);
 		EXPECT_NE(ptr, prev_ptr);
 		if (prev_ptr){
@@ -55,7 +58,7 @@ TEST_F(HPoolNoReallocationsTest, ALLOCATE_WHOLE_POOL) {
 	EXPECT_EQ(pool_.allocated(), 10);
 
 	// Allocate should return nullptr when pool is exhausted
-	int* ptr = pool_.allocate();
+	auto ptr = pool_.allocate();
 	EXPECT_EQ(ptr, nullptr);
 }
 
@@ -63,22 +66,14 @@ TEST_F(HPoolNoReallocationsTest, FREE_NULLPTR) {
 	EXPECT_EQ(pool_.size(), 10);
 	EXPECT_EQ(pool_.allocated(), 0);
 
-	pool_.free(nullptr);
-	EXPECT_EQ(pool_.allocated(), 0);
-}
+	hpool::Ptr<int, NoReallocations> null_ptr;
 
-TEST_F(HPoolNoReallocationsTest, FREE_INVALID_PTR) {
-	EXPECT_EQ(pool_.size(), 10);
+	pool_.free(null_ptr);
 	EXPECT_EQ(pool_.allocated(), 0);
-
-	int* ptr = new int;
-	pool_.free(ptr);
-	EXPECT_EQ(pool_.allocated(), 0);
-	delete ptr;
 }
 
 TEST_F(HPoolNoReallocationsTest, MULTIPLE_POINTERS_VALIDATION) {
-	std::array<int*, 10> pointers;
+	std::array<hpool::Ptr<int, NoReallocations>, 10> pointers;
 	
 	// Allocate memory
 	for (int i = 0; i < 10; ++i) {
@@ -99,23 +94,15 @@ TEST_F(HPoolNoReallocationsTest, MULTIPLE_POINTERS_VALIDATION) {
 	}
 }
 
-TEST_F(HPoolNoReallocationsTest, UNIQUE_PTR) {
-	{
-		auto ptr = hpool::make_unique(pool_, 1);
-		EXPECT_EQ(pool_.allocated(), 1);
-	}
-	EXPECT_EQ(pool_.allocated(), 0);
-}
-
 TEST_F(HPoolOffsetReallocTest, ALLOCATE_AND_FREE) {
 	EXPECT_EQ(pool_.size(), 10);
 	EXPECT_EQ(pool_.allocated(), 0);
 
-	int* ptr1 = pool_.allocate();
+	auto ptr1 = pool_.allocate();
 	EXPECT_NE(ptr1, nullptr);
 	EXPECT_EQ(pool_.allocated(), 1);
 
-	int* ptr2 = pool_.allocate();
+	auto ptr2 = pool_.allocate();
 	EXPECT_NE(ptr2, nullptr);
 	EXPECT_EQ(pool_.allocated(), 2);
 
@@ -130,8 +117,8 @@ TEST_F(HPoolOffsetReallocTest, ALLOCATE_WHOLE_POOL) {
 	EXPECT_EQ(pool_.size(), 10);
 	EXPECT_EQ(pool_.allocated(), 0);
 
-	int* prev_ptr = nullptr;
-	int* current_ptr = nullptr;
+	hpool::Ptr<int, OffsetRealloc> prev_ptr = nullptr;
+	hpool::Ptr<int, OffsetRealloc> current_ptr = nullptr;
 	for (int i = 0; i < 10; ++i) {
 		current_ptr = pool_.allocate();
 		EXPECT_NE(current_ptr, nullptr);
@@ -144,7 +131,7 @@ TEST_F(HPoolOffsetReallocTest, ALLOCATE_WHOLE_POOL) {
 	EXPECT_EQ(pool_.allocated(), 10);
 
 	// Pool should reallocate memory on allocation if storage is exhausted
-	int* ptr = pool_.allocate();
+	auto ptr = pool_.allocate();
 	EXPECT_EQ(pool_.size(), 20);
 	EXPECT_EQ(pool_.allocated(), 11);
 	EXPECT_NE(ptr, nullptr);
@@ -154,22 +141,15 @@ TEST_F(HPoolOffsetReallocTest, FREE_NULLPTR) {
 	EXPECT_EQ(pool_.size(), 10);
 	EXPECT_EQ(pool_.allocated(), 0);
 
-	pool_.free(nullptr);
-	EXPECT_EQ(pool_.allocated(), 0);
-}
+	hpool::Ptr<int, OffsetRealloc> null_ptr;
 
-TEST_F(HPoolOffsetReallocTest, FREE_INVALID_PTR) {
-	EXPECT_EQ(pool_.size(), 10);
-	EXPECT_EQ(pool_.allocated(), 0);
+	pool_.free(null_ptr);
 
-	int* ptr = new int;
-	pool_.free(ptr);
 	EXPECT_EQ(pool_.allocated(), 0);
-	delete ptr;
 }
 
 TEST_F(HPoolOffsetReallocTest, MULTIPLE_POINTERS_VALIDATION) {
-	std::array<int*, 20> pointers;
+	std::array<hpool::Ptr<int, OffsetRealloc>, 20> pointers;
 	
 	// Allocate memory
 	for (int i = 0; i < 20; ++i) {
@@ -190,10 +170,48 @@ TEST_F(HPoolOffsetReallocTest, MULTIPLE_POINTERS_VALIDATION) {
 	}
 }
 
-TEST_F(HPoolOffsetReallocTest, UNIQUE_PTR) {
-	{
-		auto ptr = hpool::make_unique(pool_, 1);
-		EXPECT_EQ(pool_.allocated(), 1);
+TEST_F(HPoolOffsetReallocTest, MULTIPLE_POINTERS_VALIDATION__NON_TRIVIALLY_COPYABLE) {
+	std::array<hpool::Ptr<std::string, OffsetRealloc>, 20> pointers;
+	hpool::HPool<std::string, hpool::ReallocationPolicy::OffsetRealloc> _pool{5};
+	
+	// Allocate memory
+	for (int i = 0; i < 20; ++i) {
+		pointers[i] = _pool.allocate();
+		*pointers[i] = std::to_string(i); 
 	}
-	EXPECT_EQ(pool_.allocated(), 0);
+
+	// Validate values
+	for (int i = 0; i < 20; ++i)
+		EXPECT_EQ(*pointers[i], std::to_string(i));
+
+	// Free and validate values
+	for (int i = 19; i >= 0; --i) {
+		_pool.free(pointers[i]);
+
+		for (int j = i - 1; i >= 0; --i)
+			EXPECT_EQ(*pointers[i], std::to_string(i));
+	}
+}
+
+TEST_F(HPoolOffsetReallocTest, MULTIPLE_POINTERS_VALIDATION__STRING_VIEW) {
+	std::array<hpool::Ptr<std::string_view, OffsetRealloc>, 20> pointers;
+	hpool::HPool<std::string_view, hpool::ReallocationPolicy::OffsetRealloc> _pool{5};
+	
+	// Allocate memory
+	for (int i = 0; i < 20; ++i) {
+		pointers[i] = _pool.allocate();
+		*pointers[i] = std::to_string(i); 
+	}
+
+	// Validate values
+	for (int i = 0; i < 20; ++i)
+		EXPECT_EQ(*pointers[i], std::to_string(i));
+
+	// Free and validate values
+	for (int i = 19; i >= 0; --i) {
+		_pool.free(pointers[i]);
+
+		for (int j = i - 1; i >= 0; --i)
+			EXPECT_EQ(*pointers[i], std::to_string(i));
+	}
 }
