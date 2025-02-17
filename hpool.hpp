@@ -186,7 +186,7 @@ namespace hpool {
 		void operator()(T* ptr) const noexcept;
 	};
 
-} // namespace hpool
+} // namespace hpol
 
 // Generic implementations
 template <typename T, hpool::ReallocationPolicy Policy> 
@@ -234,21 +234,23 @@ hpool::Ptr<T, hpool::ReallocationPolicy::NoReallocations> hpool::HPool<T, hpool:
 
 template <typename T> 
 void hpool::HPool<T, hpool::ReallocationPolicy::NoReallocations>::free(hpool::Ptr<T, hpool::ReallocationPolicy::NoReallocations>& ptr) noexcept {
-	if (!ptr)
-		return;
-	
-	std::ptrdiff_t shift = reinterpret_cast<std::ptrdiff_t>(ptr.ptr_) - 
-		reinterpret_cast<std::ptrdiff_t>(this->pool_.get());
-	if (shift < 0 || shift >= this->totalSize_ * sizeof(T)) {
-		return;
-	}
-	shift /= sizeof(T);
+        if (!ptr)
+                return;
 
-	auto block = this->parseAt(shift);
-	block.first = this->next_;
-	this->next_ = shift;
+        std::ptrdiff_t shift = reinterpret_cast<std::ptrdiff_t>(ptr.ptr_) - 
+                reinterpret_cast<std::ptrdiff_t>(this->pool_.get());
+        // Correct division by block size
+        shift /= (sizeof(T) + sizeof(std::uint32_t)); // Fix here
 
-	--this->allocatedSize_;
+        if (shift < 0 || static_cast<std::uint32_t>(shift) >= this->totalSize_) {
+                return;
+        }
+
+        auto block = this->parseAt(shift);
+        block.first = this->next_;
+        this->next_ = shift;
+
+        --this->allocatedSize_;
 }
 
 // Deleter implementation
@@ -280,55 +282,66 @@ T* hpool::HPool<T, hpool::ReallocationPolicy::OffsetRealloc>::subtractOffset(T* 
 
 template <typename T>
 hpool::Ptr<T, hpool::ReallocationPolicy::OffsetRealloc> hpool::HPool<T, hpool::ReallocationPolicy::OffsetRealloc>::allocate() noexcept {
-	if (this->allocatedSize_ == this->totalSize_) {
-		std::size_t new_size = this->totalSize_ * 2;
-		auto ptr = std::make_unique<char[]>((sizeof(T) + sizeof(std::uint32_t)) * new_size);
-		if (!ptr)
-			return nullptr;
-		if constexpr (!std::is_trivially_copyable_v<T>) {
-			for (std::uint32_t i = 0; i < this->totalSize_; ++i) {
-				auto& src = *reinterpret_cast<T*>(this->parseAt(i).second);
-				auto& dst = *reinterpret_cast<T*>(this->parseAt(i, ptr.get()).second);
-				std::construct_at(&dst, std::move(src));
-				std::destroy_at(&src);
-			}
-		} else {
-			std::memcpy(ptr.get(), this->pool_.get(), (sizeof(T) + sizeof(std::uint32_t)) * this->totalSize_);
-		}
-		offset_ = reinterpret_cast<std::uint8_t*>(ptr.get()) - reinterpret_cast<std::uint8_t*>(this->pool_.get());
-		this->totalSize_ = new_size;
-		this->pool_.swap(ptr);
-		++this->next_;
+    if (this->allocatedSize_ == this->totalSize_) {
+        std::size_t new_size = this->totalSize_ * 2;
+        auto ptr = std::make_unique<char[]>( (sizeof(T) + sizeof(std::uint32_t)) * new_size );
+        if (!ptr)
+            return nullptr;
 
-		for (std::uint32_t i = (new_size / 2) - 1; i < this->totalSize_; ++i) {
-			auto block = this->parseAt(i);
-			block.first = i + 1;
-		}
-		auto last = this->parseAt(this->totalSize_ - 1);
-		last.first = this->totalSize_ - 1;
+        std::uint32_t original_total_size = this->totalSize_; // Save the original size
 
-	}
+        if constexpr (!std::is_trivially_copyable_v<T>) {
+            for (std::uint32_t i = 0; i < original_total_size; ++i) {
+                auto* src = reinterpret_cast<T*>(this->parseAt(i).second);
+                auto* dst = reinterpret_cast<T*>(this->parseAt(i, ptr.get()).second);
+                std::construct_at(dst, std::move(*src));
+                std::destroy_at(src);
+            }
+        } else {
+            std::memcpy(ptr.get(), this->pool_.get(), (sizeof(T) + sizeof(std::uint32_t)) * original_total_size);
+        }
 
-	return Ptr<T, ReallocationPolicy::OffsetRealloc>{subtractOffset(this->parseNext()), *this};
+        // Calculate the delta and accumulate the offset
+        std::ptrdiff_t delta = reinterpret_cast<std::uint8_t*>(ptr.get()) - reinterpret_cast<std::uint8_t*>(this->pool_.get());
+        offset_ += delta;
+
+        this->totalSize_ = new_size;
+        this->pool_.swap(ptr);
+
+        // Set next_ to the start of the new free blocks (original_total_size)
+        this->next_ = original_total_size;
+
+        // Initialize new free blocks from original_total_size to new_size - 1
+        for (std::uint32_t i = original_total_size; i < new_size; ++i) {
+            auto block = this->parseAt(i);
+            block.first = i + 1;
+        }
+        auto last = this->parseAt(new_size - 1);
+        last.first = new_size - 1;
+    }
+
+    return Ptr<T, ReallocationPolicy::OffsetRealloc>{subtractOffset(this->parseNext()), *this};
 }
 
 template<typename T>
 void hpool::HPool<T, hpool::ReallocationPolicy::OffsetRealloc>::free(Ptr<T, hpool::ReallocationPolicy::OffsetRealloc>& ptr) noexcept {
-	if (!ptr)
-		return;
+        if (!ptr)
+                return;
 
-	auto ptr_ = addOffset(ptr.ptr_);
-	
-	std::ptrdiff_t shift = reinterpret_cast<std::ptrdiff_t>(ptr_) - 
-		reinterpret_cast<std::ptrdiff_t>(this->pool_.get());
-	if (shift < 0 || shift >= this->totalSize_ * sizeof(T)) {
-		return;
-	}
-	shift /= sizeof(T);
+        auto ptr_ = addOffset(ptr.ptr_);
 
-	auto block = this->parseAt(shift);
-	block.first = this->next_;
-	this->next_ = shift;
+        std::ptrdiff_t shift = reinterpret_cast<std::ptrdiff_t>(ptr_) - 
+                reinterpret_cast<std::ptrdiff_t>(this->pool_.get());
+        // Correct division by block size
+        shift /= (sizeof(T) + sizeof(std::uint32_t)); // Fix here
 
-	--this->allocatedSize_;
+        if (shift < 0 || static_cast<std::uint32_t>(shift) >= this->totalSize_) {
+                return;
+        }
+
+        auto block = this->parseAt(shift);
+        block.first = this->next_;
+        this->next_ = shift;
+
+        --this->allocatedSize_;
 }

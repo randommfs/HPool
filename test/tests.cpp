@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include <hpool.hpp>
+#include <string>
 
 using hpool::ReallocationPolicy::NoReallocations;
 using hpool::ReallocationPolicy::OffsetRealloc;
@@ -165,8 +166,8 @@ TEST_F(HPoolOffsetReallocTest, MULTIPLE_POINTERS_VALIDATION) {
 	for (int i = 19; i >= 0; --i) {
 		pool_.free(pointers[i]);
 
-		for (int j = i - 1; i >= 0; --i)
-			EXPECT_EQ(*pointers[i], i);
+		for (int j = i - 1; j >= 0; --j)
+			EXPECT_EQ(*pointers[j], j);
 	}
 }
 
@@ -188,19 +189,21 @@ TEST_F(HPoolOffsetReallocTest, MULTIPLE_POINTERS_VALIDATION__NON_TRIVIALLY_COPYA
 	for (int i = 19; i >= 0; --i) {
 		_pool.free(pointers[i]);
 
-		for (int j = i - 1; i >= 0; --i)
-			EXPECT_EQ(*pointers[i], std::to_string(i));
+		for (int j = i - 1; j >= 0; --j)
+			EXPECT_EQ(*pointers[j], std::to_string(j));
 	}
 }
 
 TEST_F(HPoolOffsetReallocTest, MULTIPLE_POINTERS_VALIDATION__STRING_VIEW) {
 	std::array<hpool::Ptr<std::string_view, OffsetRealloc>, 20> pointers;
+  std::array<std::string, 20> strings;
 	hpool::HPool<std::string_view, hpool::ReallocationPolicy::OffsetRealloc> _pool{5};
 	
 	// Allocate memory
 	for (int i = 0; i < 20; ++i) {
 		pointers[i] = _pool.allocate();
-		*pointers[i] = std::to_string(i); 
+    strings[i] = std::to_string(i);
+		*pointers[i] = strings[i];
 	}
 
 	// Validate values
@@ -211,7 +214,7 @@ TEST_F(HPoolOffsetReallocTest, MULTIPLE_POINTERS_VALIDATION__STRING_VIEW) {
 	for (int i = 19; i >= 0; --i) {
 		_pool.free(pointers[i]);
 
-		for (int j = i - 1; i >= 0; --i)
-			EXPECT_EQ(*pointers[i], std::to_string(i));
+		for (int j = i - 1; j >= 0; --j)
+			EXPECT_EQ(*pointers[j], std::to_string(j));
 	}
 }
