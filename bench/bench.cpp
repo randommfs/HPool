@@ -17,8 +17,12 @@ struct Vector {
 };
 
 size_t *arr1[TEST_SIZE];
+hpool::Ptr<size_t, hpool::ReallocationPolicy::NoReallocations> arr2[TEST_SIZE];
+hpool::Ptr<size_t, hpool::ReallocationPolicy::OffsetRealloc> arr3[TEST_SIZE];
 
 Vector *v_arr1[TEST_SIZE];
+hpool::Ptr<Vector, hpool::ReallocationPolicy::NoReallocations> v_arr2[TEST_SIZE];
+hpool::Ptr<Vector, hpool::ReallocationPolicy::OffsetRealloc> v_arr3[TEST_SIZE];
 
 void alloc_boost_linear(boost::object_pool<size_t>& boost_pool) {
   for (int i = 0; i < TEST_SIZE; ++i)
@@ -52,62 +56,62 @@ void free_boost_linear_vector(boost::object_pool<Vector>& boost_pool) {
 
 void alloc_hpool_linear(hpool::HPool<size_t, hpool::ReallocationPolicy::NoReallocations>& hpool_pool) {
   for (int i = 0; i < TEST_SIZE; ++i)
-    arr1[i] = hpool_pool.allocate();
+    arr2[i] = hpool_pool.allocate();
 }
 
 void free_hpool_linear(hpool::HPool<size_t, hpool::ReallocationPolicy::NoReallocations>& hpool_pool) {
   for (int i = 0; i < TEST_SIZE; ++i)
-    hpool_pool.free(arr1[i]);
+    hpool_pool.free(arr2[i]);
 }
 
 void alloc_hpool_random(hpool::HPool<size_t, hpool::ReallocationPolicy::NoReallocations>& hpool_pool) {
   for (int i = 0; i < TEST_SIZE; ++i)
-    arr1[i] = hpool_pool.allocate();
+    arr2[i] = hpool_pool.allocate();
 }
 
 void free_hpool_random(hpool::HPool<size_t, hpool::ReallocationPolicy::NoReallocations>& hpool_pool) {
   for (int i = 0; i < TEST_SIZE; ++i)
-    hpool_pool.free(arr1[i]);
+    hpool_pool.free(arr2[i]);
 }
 
 void alloc_hpool_linear_vector(hpool::HPool<Vector, hpool::ReallocationPolicy::NoReallocations>& hpool_pool) {
   for (int i = 0; i < TEST_SIZE; ++i)
-    v_arr1[i] = hpool_pool.allocate();
+    v_arr2[i] = hpool_pool.allocate();
 }
 
 void free_hpool_linear_vector(hpool::HPool<Vector, hpool::ReallocationPolicy::NoReallocations>& hpool_pool) {
   for (int i = 0; i < TEST_SIZE; ++i)
-    hpool_pool.free(v_arr1[i]);
+    hpool_pool.free(v_arr2[i]);
 }
 
 void alloc_hpool_linear_realloc(hpool::HPool<size_t, hpool::ReallocationPolicy::OffsetRealloc>& hpool_pool) {
   for (int i = 0; i < TEST_SIZE; ++i)
-    arr1[i] = hpool_pool.allocate();
+    arr3[i] = hpool_pool.allocate();
 }
 
 void free_hpool_linear_realloc(hpool::HPool<size_t, hpool::ReallocationPolicy::OffsetRealloc>& hpool_pool) {
   for (int i = 0; i < TEST_SIZE; ++i)
-    hpool_pool.free(arr1[i]);
+    hpool_pool.free(arr3[i]);
 }
 
 void alloc_hpool_random_realloc(hpool::HPool<size_t, hpool::ReallocationPolicy::OffsetRealloc>& hpool_pool) {
   for (int i = 0; i < TEST_SIZE; ++i)
-    arr1[i] = hpool_pool.allocate();
+    arr3[i] = hpool_pool.allocate();
 }
 
 void free_hpool_random_realloc(hpool::HPool<size_t, hpool::ReallocationPolicy::OffsetRealloc>& hpool_pool) {
   for (int i = 0; i < TEST_SIZE; ++i)
-    hpool_pool.free(arr1[i]);
+    hpool_pool.free(arr3[i]);
 }
 
 void alloc_hpool_linear_vector_realloc(hpool::HPool<Vector, hpool::ReallocationPolicy::OffsetRealloc>& hpool_pool) {
   for (int i = 0; i < TEST_SIZE; ++i)
-    v_arr1[i] = hpool_pool.allocate();
+    v_arr3[i] = hpool_pool.allocate();
 }
 
 void free_hpool_linear_vector_realloc(hpool::HPool<Vector, hpool::ReallocationPolicy::OffsetRealloc>& hpool_pool) {
   for (int i = 0; i < TEST_SIZE; ++i)
-    hpool_pool.free(v_arr1[i]);
+    hpool_pool.free(v_arr3[i]);
 }
 
 int main() {

@@ -61,27 +61,27 @@ std::string _format_time(std::chrono::time_point<s_clock> &_s,
 }
 
 void _report_start(std::string_view statement) {
-  std::osyncstream(std::cout)
+  std::cout
       << CGREEN << "[ START ] " << CRESET
       << "Starting benchmark of statement [ " << statement << " ]" << std::endl;
 }
 
 void _report_start_n(std::string_view name) {
-  std::osyncstream(std::cout) << CGREEN << "[ START ] " << CRESET
+  std::cout << CGREEN << "[ START ] " << CRESET
                               << "Starting benchmark " << name << std::endl;
 }
 
 void _report_start(int slot) { _report_start_n(_entries[slot].name); }
 
 void _print_time(std::string_view statement, std::string time) {
-  std::osyncstream(std::cout)
+  std::cout
       << CGREEN << "[  END  ] " << CRESET
       << "Finished benchmark of statement [ " << statement << " ]\n"
       << CGREENB << "[ TOTAL ] " << time << CRESET << std::endl;
 }
 
 void _print_time_n(std::string_view name, std::string time) {
-  std::osyncstream(std::cout)
+  std::cout
       << CGREEN << "[  END  ] " << CRESET << "Finished benchmark " << name
       << "\n"
       << CGREENB << "[ TOTAL ] " << time << CRESET << std::endl;

@@ -288,7 +288,7 @@ hpool::Ptr<T, hpool::ReallocationPolicy::OffsetRealloc> hpool::HPool<T, hpool::R
         if (!ptr)
             return nullptr;
 
-        std::uint32_t original_total_size = this->totalSize_; // Save the original size
+        std::uint32_t original_total_size = this->totalSize_;
 
         if constexpr (!std::is_trivially_copyable_v<T>) {
             for (std::uint32_t i = 0; i < original_total_size; ++i) {
@@ -301,17 +301,14 @@ hpool::Ptr<T, hpool::ReallocationPolicy::OffsetRealloc> hpool::HPool<T, hpool::R
             std::memcpy(ptr.get(), this->pool_.get(), (sizeof(T) + sizeof(std::uint32_t)) * original_total_size);
         }
 
-        // Calculate the delta and accumulate the offset
         std::ptrdiff_t delta = reinterpret_cast<std::uint8_t*>(ptr.get()) - reinterpret_cast<std::uint8_t*>(this->pool_.get());
         offset_ += delta;
 
         this->totalSize_ = new_size;
         this->pool_.swap(ptr);
 
-        // Set next_ to the start of the new free blocks (original_total_size)
         this->next_ = original_total_size;
 
-        // Initialize new free blocks from original_total_size to new_size - 1
         for (std::uint32_t i = original_total_size; i < new_size; ++i) {
             auto block = this->parseAt(i);
             block.first = i + 1;
@@ -332,8 +329,7 @@ void hpool::HPool<T, hpool::ReallocationPolicy::OffsetRealloc>::free(Ptr<T, hpoo
 
         std::ptrdiff_t shift = reinterpret_cast<std::ptrdiff_t>(ptr_) - 
                 reinterpret_cast<std::ptrdiff_t>(this->pool_.get());
-        // Correct division by block size
-        shift /= (sizeof(T) + sizeof(std::uint32_t)); // Fix here
+        shift /= (sizeof(T) + sizeof(std::uint32_t));
 
         if (shift < 0 || static_cast<std::uint32_t>(shift) >= this->totalSize_) {
                 return;

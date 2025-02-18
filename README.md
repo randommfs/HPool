@@ -23,7 +23,7 @@
 <td>
 Why is this thing so fast? The only case that uses O(n) approach is next free block search function. When you call allocate(), it takes index of free block, and searches for next free block starting from that index. It works, because free() always keeps track of pointer to the *first* free block. Also, free() uses O(1) algorithm, so every run takes constant time. These are main features of library - insanely fast free algorithm and small header!
 
-Also, we made revolutional feature - our pool allocator is expandable, like any C++ storage (std::vector, etc.)! It supports two policies - NoReallocations, and OffsetRealloc. NoReallocations will return nullptr if pool is exhausted, and OffsetRealloc will try to extend pool.
+Also, we made "revolutional" feature - our pool allocator is expandable, like any C++ storage (std::vector, etc.)! It supports two policies - NoReallocations, and OffsetRealloc. NoReallocations will return nullptr if pool is exhausted, and OffsetRealloc will try to extend pool.
 </td>
 </tr>
 </table>
@@ -61,13 +61,14 @@ or OffsetRealloc policy, for expandable storage:
 ```cpp
 hpool::HPool<T, hpool::ReallocationPolicy::OffsetRealloc> pool{32};
 ```
-where T is a target type, and 32 is a maximum pool size (in number of elements of type T).
+where T is a target type, and 32 is a max pool size (in number of elements of type T).
 
 ### Use
 #### Allocate memory:
 ```cpp
 auto ptr = pool.allocate();
 ```
+`ptr` has type hpool::Ptr<T, hpool::ReallocationPolicy::<your_policy>, i recommend creating a macro for these types.
 
 #### Free memory:
 ```cpp
@@ -82,12 +83,6 @@ uint32_t count = pool.size();
 #### Get count of allocated elements:
 ```cpp
 uint32_t count = pool.allocated();
-```
-#### Smart pointers:
-```cpp
-hpool::HPool<T, hpool::ReallocationPolicy::NoReallocations> pool{32};
-auto sharedptr = hpool::make_shared(pool);
-auto uniqueptr = hpool::make_unique(pool);
 ```
 
 
