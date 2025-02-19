@@ -94,8 +94,9 @@ namespace hpool {
 	class HPool<T, ReallocationPolicy::NoReallocations> : public _internal::IHPool<T, ReallocationPolicy::NoReallocations> {
 	public:
 		explicit HPool(std::uint32_t);
-
-		Ptr<T, ReallocationPolicy::NoReallocations> allocate() noexcept;
+    
+    template<typename... Args>
+		Ptr<T, ReallocationPolicy::NoReallocations> allocate(Args&&... args) noexcept;
 		void free(Ptr<T, ReallocationPolicy::NoReallocations>&) noexcept;
 	};
 
@@ -138,7 +139,8 @@ namespace hpool {
 	public:
 		explicit HPool(std::uint32_t);
 
-		Ptr<T, ReallocationPolicy::OffsetRealloc> allocate() noexcept;
+    template<typename... Args>
+		Ptr<T, ReallocationPolicy::OffsetRealloc> allocate(Args... args) noexcept;
 		void free(Ptr<T, ReallocationPolicy::OffsetRealloc>&) noexcept;
 	};
 
@@ -224,12 +226,15 @@ hpool::HPool<T, hpool::ReallocationPolicy::NoReallocations>::HPool(std::uint32_t
 	: hpool::_internal::IHPool<T, hpool::ReallocationPolicy::NoReallocations>(size) { }
 
 template <typename T>
-hpool::Ptr<T, hpool::ReallocationPolicy::NoReallocations> hpool::HPool<T, hpool::ReallocationPolicy::NoReallocations>::allocate() noexcept {
+template <typename... Args>
+hpool::Ptr<T, hpool::ReallocationPolicy::NoReallocations> hpool::HPool<T, hpool::ReallocationPolicy::NoReallocations>::allocate(Args&&... args) noexcept {
 	if (this->allocatedSize_ == this->totalSize_) {
 		return nullptr;
 	}
-
-	return Ptr<T, NoReallocations>(this->parseNext());
+  
+  auto ptr = this->parseNext();
+  std::construct_at(ptr, std::forward<Args>(args)...);
+	return Ptr<T, NoReallocations>(ptr);
 }
 
 template <typename T> 
