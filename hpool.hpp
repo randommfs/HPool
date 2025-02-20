@@ -66,8 +66,8 @@ namespace hpool {
 		class IDeleter {
 		public:
 			IDeleter() = default;
-			IDeleter(const IDeleter<T>& other) { }
-			IDeleter(IDeleter<T>&& other) { }
+			IDeleter([[maybe_unused]] const IDeleter<T>& other) { }
+			IDeleter([[maybe_unused]] IDeleter<T>&& other) { }
 
 			void operator()(T* ptr) const noexcept;
 		};
