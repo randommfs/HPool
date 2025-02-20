@@ -129,7 +129,7 @@ namespace hpool {
 
 
 	template<typename T>
-	class HPool<T, ReallocationPolicy::OffsetRealloc> final : public _internal::IHPool<T, ReallocationPolicy::NoReallocations> {
+	class HPool<T, ReallocationPolicy::OffsetRealloc> final : public _internal::IHPool<T, ReallocationPolicy::OffsetRealloc> {
 	private:
 		friend class Ptr<T, ReallocationPolicy::OffsetRealloc>;
 		std::ptrdiff_t offset_;
@@ -140,7 +140,7 @@ namespace hpool {
 		explicit HPool(std::uint32_t);
 
     template<typename... Args>
-		Ptr<T, ReallocationPolicy::OffsetRealloc> allocate(Args... args) noexcept;
+		Ptr<T, ReallocationPolicy::OffsetRealloc> allocate(Args&&... args) noexcept;
 		void free(Ptr<T, ReallocationPolicy::OffsetRealloc>&) noexcept;
 	};
 
@@ -272,7 +272,7 @@ void hpool::Deleter<T, ReallocPolicy>::operator()(T* ptr) const noexcept {
 // HPool OffsetRealloc implementation
 template<typename T>
 hpool::HPool<T, hpool::ReallocationPolicy::OffsetRealloc>::HPool(std::uint32_t size)
-	: hpool::_internal::IHPool<T, hpool::ReallocationPolicy::NoReallocations>(size)
+	: hpool::_internal::IHPool<T, hpool::ReallocationPolicy::OffsetRealloc>(size)
 	, offset_(0) { }
 
 template<typename T>
@@ -286,7 +286,8 @@ T* hpool::HPool<T, hpool::ReallocationPolicy::OffsetRealloc>::subtractOffset(T* 
 }
 
 template <typename T>
-hpool::Ptr<T, hpool::ReallocationPolicy::OffsetRealloc> hpool::HPool<T, hpool::ReallocationPolicy::OffsetRealloc>::allocate() noexcept {
+template <typename... Args>
+hpool::Ptr<T, hpool::ReallocationPolicy::OffsetRealloc> hpool::HPool<T, hpool::ReallocationPolicy::OffsetRealloc>::allocate(Args&&... args) noexcept {
     if (this->allocatedSize_ == this->totalSize_) {
         std::size_t new_size = this->totalSize_ * 2;
         auto ptr = std::make_unique<char[]>( (sizeof(T) + sizeof(std::uint32_t)) * new_size );
@@ -321,8 +322,10 @@ hpool::Ptr<T, hpool::ReallocationPolicy::OffsetRealloc> hpool::HPool<T, hpool::R
         auto last = this->parseAt(new_size - 1);
         last.first = new_size - 1;
     }
-
-    return Ptr<T, ReallocationPolicy::OffsetRealloc>{subtractOffset(this->parseNext()), *this};
+    
+    auto ptr = this->parseNext();
+    std::construct_at(ptr, std::forward<Args>(args)...);
+    return Ptr<T, ReallocationPolicy::OffsetRealloc>{subtractOffset(ptr), *this};
 }
 
 template<typename T>

@@ -95,6 +95,11 @@ TEST_F(HPoolNoReallocationsTest, MULTIPLE_POINTERS_VALIDATION) {
 	}
 }
 
+TEST_F(HPoolNoReallocationsTest, CTOR_ARGS) {
+  auto ptr = pool_.allocate(42);
+  EXPECT_EQ(*ptr, 42);
+}
+
 TEST_F(HPoolOffsetReallocTest, ALLOCATE_AND_FREE) {
 	EXPECT_EQ(pool_.size(), 10);
 	EXPECT_EQ(pool_.allocated(), 0);
@@ -217,4 +222,9 @@ TEST_F(HPoolOffsetReallocTest, MULTIPLE_POINTERS_VALIDATION__STRING_VIEW) {
 		for (int j = i - 1; j >= 0; --j)
 			EXPECT_EQ(*pointers[j], std::to_string(j));
 	}
+}
+
+TEST_F(HPoolOffsetReallocTest, CTOR_ARGS) {
+  auto ptr = pool_.allocate(42);
+  EXPECT_EQ(*ptr, 42);
 }
