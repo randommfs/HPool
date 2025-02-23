@@ -104,11 +104,11 @@ namespace hpool {
 	private:
 		friend class HPool<T, ReallocationPolicy::NoReallocations>;
 		T* ptr_;
-		Ptr<T, ReallocationPolicy::NoReallocations>(T* ptr) : ptr_(ptr) { }
+		Ptr(T* ptr) : ptr_(ptr) { }
 	public:
-		Ptr<T, ReallocationPolicy::NoReallocations>() = default;
-		Ptr<T, ReallocationPolicy::NoReallocations>(const std::nullptr_t) : ptr_(nullptr) { }
-		Ptr<T, ReallocationPolicy::NoReallocations>(const Ptr<T, ReallocationPolicy::NoReallocations>& other) {
+		Ptr() = default;
+		Ptr(const std::nullptr_t) : ptr_(nullptr) { }
+		Ptr(const Ptr<T, ReallocationPolicy::NoReallocations>& other) {
 			ptr_ = other.ptr_;
 		}
 		Ptr<T, ReallocationPolicy::NoReallocations>& operator=(Ptr<T, ReallocationPolicy::NoReallocations> other) {
@@ -149,12 +149,12 @@ namespace hpool {
 		friend class HPool<T, ReallocationPolicy::OffsetRealloc>;
 		HPool<T, ReallocationPolicy::OffsetRealloc>* pool_;
 		T* ptr_;
-		Ptr<T, ReallocationPolicy::OffsetRealloc>(T* ptr, HPool<T, ReallocationPolicy::OffsetRealloc>& pool) : pool_(&pool), ptr_(ptr)  { }
+		Ptr(T* ptr, HPool<T, ReallocationPolicy::OffsetRealloc>& pool) : pool_(&pool), ptr_(ptr)  { }
 	public:
-		Ptr<T, ReallocationPolicy::OffsetRealloc>() = default;
-		Ptr<T, ReallocationPolicy::OffsetRealloc>(const std::nullptr_t) : pool_(nullptr), ptr_(nullptr) { }
-		Ptr<T, ReallocationPolicy::OffsetRealloc>(HPool<T, ReallocationPolicy::OffsetRealloc>& pool) : pool_(&pool), ptr_(nullptr) { }
-		Ptr<T, ReallocationPolicy::OffsetRealloc>(const Ptr<T, ReallocationPolicy::OffsetRealloc>& other) {
+		Ptr() = default;
+		Ptr(const std::nullptr_t) : pool_(nullptr), ptr_(nullptr) { }
+		Ptr(HPool<T, ReallocationPolicy::OffsetRealloc>& pool) : pool_(&pool), ptr_(nullptr) { }
+		Ptr(const Ptr<T, ReallocationPolicy::OffsetRealloc>& other) {
 			pool_ = other.pool_;
 			ptr_ = other.ptr_;
 		}
