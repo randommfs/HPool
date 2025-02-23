@@ -8,7 +8,6 @@
 #include <stdexcept>
 #include <type_traits>
 #include <utility>
-#include <iostream>
 
 
 namespace hpool {
@@ -150,7 +149,7 @@ namespace hpool {
 		friend class HPool<T, ReallocationPolicy::OffsetRealloc>;
 		HPool<T, ReallocationPolicy::OffsetRealloc>* pool_;
 		T* ptr_;
-		Ptr<T, ReallocationPolicy::OffsetRealloc>(T* ptr, HPool<T, ReallocationPolicy::OffsetRealloc>& pool) : ptr_(ptr), pool_(&pool) { }
+		Ptr<T, ReallocationPolicy::OffsetRealloc>(T* ptr, HPool<T, ReallocationPolicy::OffsetRealloc>& pool) : pool_(&pool), ptr_(ptr)  { }
 	public:
 		Ptr<T, ReallocationPolicy::OffsetRealloc>() = default;
 		Ptr<T, ReallocationPolicy::OffsetRealloc>(const std::nullptr_t) : pool_(nullptr), ptr_(nullptr) { }
