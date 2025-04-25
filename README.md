@@ -88,8 +88,6 @@ uint32_t count = pool.allocated();
 
 ## Benchmarks
 
-I compared this library to boost's object_pool using my own benchmarking lib called [HBench](https://github.com/randommfs/HBench). You can find it in [bench](bench) directory in project root.
-
 **Pools has been tested in different scopes, on 524288 elements. Compiled with -O3. CPU - AMD FX-8350 4GHz. Test results are average from 3 iterations.**  
 **Every test has two variants - on size_t and 3-dimensional vector, which has 3 double values in it.**  
 | Benchmark                       	          | Result      	|
