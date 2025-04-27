@@ -1,1 +1,0 @@
-. "/home/fungor/Projects/cpp/HPool/build-release/conan/conanrunenv-release-x86_64.sh"
