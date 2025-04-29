@@ -90,8 +90,8 @@ TEST_F(HPoolNoReallocationsTest, MULTIPLE_POINTERS_VALIDATION) {
 	for (int i = 9; i >= 0; --i) {
 		pool_.free(pointers[i]);
 
-		for (int j = i - 1; i >= 0; --i)
-			EXPECT_EQ(*pointers[i], i);
+		for (int j = i - 1; j >= 0; --j)
+			EXPECT_EQ(*pointers[j], j);
 	}
 }
 
