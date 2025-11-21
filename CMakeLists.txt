@@ -12,7 +12,7 @@ option(HPOOL_BUILD_TESTS "Whether to include test target into configuration" ON)
 option(HPOOL_BUILD_BENCHMARKS "Whether to include benchmark target into configuration" ON)
 
 add_library(hpool INTERFACE)
-target_sources(hpool INTERFACE hpool.hpp)
+target_sources(hpool INTERFACE new_hpool.hpp hpool.hpp)
 target_include_directories(hpool INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
 
 if(HPOOL_BUILD_TESTS)

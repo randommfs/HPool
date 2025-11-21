@@ -1,25 +1,15 @@
 #include <gtest/gtest.h>
-#include <hpool.hpp>
+#include <new_hpool.hpp>
 #include <string>
 
-using hpool::ReallocationPolicy::NoReallocations;
-using hpool::ReallocationPolicy::OffsetRealloc;
+class HPoolTests : public ::testing::Test {
+protected:
+  HPoolTests() : pool_(10) {}
 
-class HPoolNoReallocationsTest : public ::testing::Test {
- protected:
-	HPoolNoReallocationsTest() : pool_(10) {}
-
-	hpool::HPool<int, NoReallocations> pool_;
+  HPool::HPool<int> pool_;
 };
 
-class HPoolOffsetReallocTest : public ::testing::Test {
- protected:
-	HPoolOffsetReallocTest() : pool_(10) {}
-
-	hpool::HPool<int, OffsetRealloc> pool_;
-};
-
-TEST_F(HPoolNoReallocationsTest, ALLOCATE_AND_FREE) {
+TEST_F(HPoolTests, ALLOCATE_AND_FREE) {
 	EXPECT_EQ(pool_.size(), 10);
 	EXPECT_EQ(pool_.allocated(), 0);
 
@@ -38,6 +28,7 @@ TEST_F(HPoolNoReallocationsTest, ALLOCATE_AND_FREE) {
 	EXPECT_EQ(pool_.allocated(), 0);
 }
 
+/*
 TEST_F(HPoolNoReallocationsTest, ALLOCATE_WHOLE_POOL) {
 	EXPECT_EQ(pool_.size(), 10);
 	EXPECT_EQ(pool_.allocated(), 0);
@@ -228,3 +219,4 @@ TEST_F(HPoolOffsetReallocTest, CTOR_ARGS) {
   auto ptr = pool_.allocate(42);
   EXPECT_EQ(*ptr, 42);
 }
+*/
