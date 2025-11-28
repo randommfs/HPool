@@ -99,51 +99,29 @@ TEST_F(HPoolMultiTypeTests, MULTIPLE_POINTERS_VALIDATION__NON_TRIVIALLY_COPYABLE
 
 	// Allocate memory
 	for (int i = 0; i < 20; ++i) {
-		int_ptrs[i] = pool_.allocate<int>();
-		*int_ptrs[i] = i;
+		int_ptrs[i] = pool_.allocate<int>(i);
+	  str_ptrs[i] = pool_.allocate<std::string>(std::to_string(i));
+	  dbl_ptrs[i] = pool_.allocate<double>(0.5 + static_cast<double>(i));
 	}
+
 
 	// Validate values
-	for (int i = 0; i < 20; ++i)
-		EXPECT_EQ(*int_ptrs[i], std::to_string(i));
-
-	// Free and validate values
-	for (int i = 19; i >= 0; --i) {
-		pool_.free(pointers[i]);
-
-		for (int j = i - 1; j >= 0; --j)
-			EXPECT_EQ(*pointers[j], std::to_string(j));
-	}
-}
-
-/*
-TEST_F(HPoolOffsetReallocTest, MULTIPLE_POINTERS_VALIDATION__STRING_VIEW) {
-	std::array<hpool::Ptr<std::string_view, OffsetRealloc>, 20> pointers;
-  std::array<std::string, 20> strings;
-	hpool::HPool<std::string_view, hpool::ReallocationPolicy::OffsetRealloc> _pool{5};
-	
-	// Allocate memory
 	for (int i = 0; i < 20; ++i) {
-		pointers[i] = _pool.allocate();
-    strings[i] = std::to_string(i);
-		*pointers[i] = strings[i];
+	  EXPECT_EQ(*int_ptrs[i], i);
+	  EXPECT_EQ(*str_ptrs[i], std::to_string(i));
+	  EXPECT_EQ(*dbl_ptrs[i], 0.5 + static_cast<double>(i));
 	}
-
-	// Validate values
-	for (int i = 0; i < 20; ++i)
-		EXPECT_EQ(*pointers[i], std::to_string(i));
 
 	// Free and validate values
 	for (int i = 19; i >= 0; --i) {
-		_pool.free(pointers[i]);
+		pool_.free(int_ptrs[i]);
+	  pool_.free(str_ptrs[i]);
+	  pool_.free(dbl_ptrs[i]);
 
-		for (int j = i - 1; j >= 0; --j)
-			EXPECT_EQ(*pointers[j], std::to_string(j));
+		for (int j = i - 1; j >= 0; --j) {
+		  EXPECT_EQ(*int_ptrs[j], j);
+		  EXPECT_EQ(*str_ptrs[j], std::to_string(j));
+		  EXPECT_EQ(*dbl_ptrs[j], 0.5 + static_cast<double>(j));
+		}
 	}
 }
-
-TEST_F(HPoolOffsetReallocTest, CTOR_ARGS) {
-  auto ptr = pool_.allocate(42);
-  EXPECT_EQ(*ptr, 42);
-}
-*/
