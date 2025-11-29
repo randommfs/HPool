@@ -63,8 +63,8 @@ HPool::HPool<int, std::string> pool(32);
 ```cpp
 auto ptr = pool.allocate();
 ```
-For single-type pool `ptr` has type HPool::Ptr<int>.
-For multi-type pool `ptr` has type HPool::Ptr<int, std::variant<int, std::string>>.
+For single-type pool, `ptr` has type HPool::Ptr<int>.  
+For multi-type pool, `ptr` has type HPool::Ptr<int, std::variant<int, std::string>>.
 
 #### Free memory:
 ```cpp
