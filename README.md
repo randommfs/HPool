@@ -21,54 +21,50 @@
 <table>
 <tr>
 <td>
-Why is this thing so fast? The only case that uses O(n) approach is next free block search function. When you call allocate(), it takes index of free block, and searches for next free block starting from that index. It works, because free() always keeps track of pointer to the *first* free block. Also, free() uses O(1) algorithm, so every run takes constant time. These are main features of library - insanely fast free algorithm and small header!
-
-Also, we made "revolutional" feature - our pool allocator is expandable, like any C++ storage (std::vector, etc.)! It supports two policies - NoReallocations, and OffsetRealloc. NoReallocations will return nullptr if pool is exhausted, and OffsetRealloc will try to extend pool.
+HPool is a lightweight pool allocator supporting multiple types and dynamic extension.
 </td>
 </tr>
 </table>
 
 # Table of contents
 - [Installation](#installation)
-- [Building tests and benchmarks](#building-tests-and-benchmarks)
+- [Building tests](#building-tests-and-benchmarks)
 - [Usage](#usage)
 - [Benchmarks](#benchmarks)
 
 ## Installation
-1. Download header [hpool.h](hpool.hpp)
-2. Include it to your source file.
-3. ...use?
+The recommended way (for now) is using git submodules. If you want to integrate HPool into your project, add it as a submodule.
 
-## Building tests and benchmarks
-There is a single test (yes) and some benchmarks. To build, run this:
+## Building tests
+To build tests, you need GTest available globally.
 ```bash
-mkdir build
-cd build
-cmake ..
-make -j$(nproc)
-./tests # Run test(s)
-./bench # Run benchmark (please, be patient)
+cmake -S. -Bbuild 
+cmake --build build --target tests
+build/tests
 ```
 
 ## Usage
 
 ### Preparation
-Create pool object. You can select NoReallocations policy:
-```cpp
-hpool::HPool<T, hpool::ReallocationPolicy::NoReallocations> pool{32};
+Create pool object.
+If you want a single-type pool:
+```c++
+// Create a pool, that holds 32 ints.
+HPool::HPool<int> pool(32);
 ```
-or OffsetRealloc policy, for expandable storage:
-```cpp
-hpool::HPool<T, hpool::ReallocationPolicy::OffsetRealloc> pool{32};
+If you want a multi-type pool:
+```c++
+// Create a combined pool, that can hold 32 objects of either int or string.
+HPool::HPool<int, std::string> pool(32);
 ```
-where T is a target type, and 32 is a max pool size (in number of elements of type T).
 
 ### Use
 #### Allocate memory:
 ```cpp
 auto ptr = pool.allocate();
 ```
-`ptr` has type hpool::Ptr<T, hpool::ReallocationPolicy::<your_policy>, i recommend creating a macro for these types.
+For single-type pool `ptr` has type HPool::Ptr<int>.
+For multi-type pool `ptr` has type HPool::Ptr<int, std::variant<int, std::string>>.
 
 #### Free memory:
 ```cpp
@@ -84,28 +80,3 @@ uint32_t count = pool.size();
 ```cpp
 uint32_t count = pool.allocated();
 ```
-
-
-## Benchmarks
-
-I compared this library to boost's object_pool using my own benchmarking lib called [HBench](https://github.com/randommfs/HBench). You can find it in [bench](bench) directory in project root.
-
-**Pools has been tested in different scopes, on 524288 elements. Compiled with -O3. CPU - AMD FX-8350 4GHz. Test results are average from 3 iterations.**  
-**Every test has two variants - on size_t and 3-dimensional vector, which has 3 double values in it.**  
-| Benchmark                       	          | Result      	|
-|--------------------------------------------|--------------|
-| boost::object_pool size_t  allocation  	| 12ms        	|
-| boost::object_pool size_t linear free      | 6m 19s 384ms |
-| boost::object_pool size_t random free 	| 2m 11s 426ms |
-| boost::object_pool vector  allocation  	| 20ms        	|
-| boost::object_pool vector linear free      | 52m 27s 631ms|
-| hpool::HPool no_realloc size_t allocation  | 3ms         	|
-| hpool::HPool no_realloc size_t linear free | 2ms         	|
-| hpool::HPool no_realloc size_t random free | 3ms         	|
-| hpool::HPool no_realloc vector allocation  | 3ms         	|
-| hpool::HPool no_realloc vector linear free | 3ms         	|
-| hpool::HPool realloc size_t allocation     | 11ms         |
-| hpool::HPool realloc size_t linear free    | 1ms         	|
-| hpool::HPool realloc size_t random free    | 3ms         	|
-| hpool::HPool realloc vector allocation     | 22ms         |
-| hpool::HPool realloc vector linear free    | 2ms         	|

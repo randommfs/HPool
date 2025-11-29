@@ -1,6 +1,6 @@
 #pragma once
 
-#include "new_hpool.hpp"
+#include "hpool.hpp"
 
 #include <cassert>
 #include <cstddef>

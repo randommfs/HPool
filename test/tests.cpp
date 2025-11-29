@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include <new_hpool.hpp>
+#include <hpool.hpp>
 #include <string>
 
 class HPoolTests : public ::testing::Test {
