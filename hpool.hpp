@@ -224,7 +224,7 @@ namespace HPool {
     }
 
     T& operator*() { return Access::AddOffset(pl, Base::m_ptr)->value; }
-    T& operator->() { return Access::AddOffset(pl, Base::m_ptr)->value; }
+    T* operator->() { return &Access::AddOffset(pl, Base::m_ptr)->value; }
     T* operator+() = delete;
     T* operator-() = delete;
     bool operator==(const std::nullptr_t) const { return Base::operator==(nullptr); }
@@ -267,7 +267,7 @@ namespace HPool {
     }
 
     ActiveT& operator*();
-    ActiveT& operator->();
+    ActiveT* operator->();
     ActiveT* operator+() = delete;
     ActiveT* operator-() = delete;
     bool operator==(const std::nullptr_t) const { return Base::operator==(nullptr); }
@@ -325,8 +325,8 @@ ActiveT& HPool::Ptr<ActiveT, std::variant<T1, T2, Ts...>>::operator*() {
 }
 
 template <typename ActiveT, typename T1, typename T2, typename... Ts>
-ActiveT& HPool::Ptr<ActiveT, std::variant<T1, T2, Ts...>>::operator->() {
-  return std::get<ActiveT>(Access::AddOffset(pl, Base::m_ptr)->value);
+ActiveT* HPool::Ptr<ActiveT, std::variant<T1, T2, Ts...>>::operator->() {
+  return &std::get<ActiveT>(Access::AddOffset(pl, Base::m_ptr)->value);
 }
 
 template<typename T>
