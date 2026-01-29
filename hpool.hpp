@@ -153,7 +153,7 @@ namespace HPool {
       IPointer(const std::nullptr_t) : m_ptr(nullptr) { }
       IPointer(HPoolElemWrapper<T>* ptr) : m_ptr(ptr) { }
       IPointer(const IPointer<T>& other) : m_ptr(other.m_ptr) { }
-      IPointer& operator=(IPointer& other) {
+      IPointer& operator=(const IPointer& other) {
         m_ptr = other.m_ptr;
         return *this;
       }
@@ -321,11 +321,13 @@ HPool::Ptr<ActiveT, std::variant<T1, T2, Ts...>>::Ptr(Ptr<std::variant<T1, T2, T
 
 template <typename ActiveT, typename T1, typename T2, typename... Ts>
 ActiveT& HPool::Ptr<ActiveT, std::variant<T1, T2, Ts...>>::operator*() {
+  static_assert(std::is_default_constructible_v<ActiveT>, "ActiveT must be default constructible to use operator* in multitype ptr");
   return std::get<ActiveT>(Access::AddOffset(pl, Base::m_ptr)->value);
 }
 
 template <typename ActiveT, typename T1, typename T2, typename... Ts>
 ActiveT* HPool::Ptr<ActiveT, std::variant<T1, T2, Ts...>>::operator->() {
+  static_assert(std::is_default_constructible_v<ActiveT>, "ActiveT must be default constructible to use operator-> in multitype ptr");
   return &std::get<ActiveT>(Access::AddOffset(pl, Base::m_ptr)->value);
 }
 
