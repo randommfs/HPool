@@ -321,23 +321,31 @@ HPool::Ptr<ActiveT, std::variant<T1, T2, Ts...>>::Ptr(Ptr<std::variant<T1, T2, T
 
 template <typename ActiveT, typename T1, typename T2, typename... Ts>
 ActiveT& HPool::Ptr<ActiveT, std::variant<T1, T2, Ts...>>::operator*() {
-  if (!std::holds_alternative<ActiveT>(Access::AddOffset(pl, Base::m_ptr)->value)) {
-    if (!std::is_default_constructible_v<ActiveT>) {
+  if constexpr (std::is_default_constructible_v<ActiveT>) {
+    if (!std::holds_alternative<ActiveT>(Access::AddOffset(pl, Base::m_ptr)->value)) {
+      Access::AddOffset(pl, Base::m_ptr)->value = ActiveT();
+    }
+  } else {
+    if (!std::holds_alternative<ActiveT>(Access::AddOffset(pl, Base::m_ptr)->value)) {
       assert(0 && "ActiveT must be default constructible to use operator-> and default initialize new object in place");
     }
-    Access::AddOffset(pl, Base::m_ptr)->value = ActiveT();
   }
+
   return std::get<ActiveT>(Access::AddOffset(pl, Base::m_ptr)->value);
 }
 
 template <typename ActiveT, typename T1, typename T2, typename... Ts>
 ActiveT* HPool::Ptr<ActiveT, std::variant<T1, T2, Ts...>>::operator->() {
-  if (!std::holds_alternative<ActiveT>(Access::AddOffset(pl, Base::m_ptr)->value)) {
-    if (!std::is_default_constructible_v<ActiveT>) {
+  if constexpr (std::is_default_constructible_v<ActiveT>) {
+    if (!std::holds_alternative<ActiveT>(Access::AddOffset(pl, Base::m_ptr)->value)) {
+      Access::AddOffset(pl, Base::m_ptr)->value = ActiveT();
+    }
+  } else {
+    if (!std::holds_alternative<ActiveT>(Access::AddOffset(pl, Base::m_ptr)->value)) {
       assert(0 && "ActiveT must be default constructible to use operator-> and default initialize new object in place");
     }
-    Access::AddOffset(pl, Base::m_ptr)->value = ActiveT();
   }
+
   return &std::get<ActiveT>(Access::AddOffset(pl, Base::m_ptr)->value);
 }
 
