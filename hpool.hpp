@@ -206,7 +206,7 @@ namespace HPool {
     using Access = __hpool_impl::PtrAccess;
   public:
     Ptr() : Base(nullptr), pl(nullptr) { };
-    explicit Ptr(const std::nullptr_t) : Base(nullptr) { }
+    Ptr(const std::nullptr_t) : Base(nullptr) { }
     Ptr(__hpool_impl::HPoolElemWrapper<T>* ptr, __hpool_impl::IHPool<T>* pl)
       : Base(ptr), pl(pl) { }
     Ptr(const Ptr& other) : Base(other) { }
@@ -248,7 +248,7 @@ namespace HPool {
     explicit Ptr(Ptr<Type>&&);
 
     Ptr() = default;
-    explicit Ptr(const std::nullptr_t) : Base(nullptr) { }
+    Ptr(const std::nullptr_t) : Base(nullptr) { }
     Ptr(__hpool_impl::HPoolElemWrapper<Type>* ptr, __hpool_impl::IHPool<Type>* pl)
       : Base(ptr), pl(pl) { }
     Ptr(const Ptr& other) noexcept : Base(other), pl(other.pl) { }
